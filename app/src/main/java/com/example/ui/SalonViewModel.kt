@@ -19,7 +19,8 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
 
     // Setup secure Retrofit connection mapped to internal high-speed mock network server
     private val apiService = RetrofitClient.clientFactory {
-        addInterceptor(MockServerInterceptor())
+        // Comment out MockServerInterceptor to connect to the live Render backend directly
+        // addInterceptor(MockServerInterceptor())
     }
 
     private val _syncState = MutableStateFlow("IDLE") // IDLE, SYNCING, SUCCESS, ERROR

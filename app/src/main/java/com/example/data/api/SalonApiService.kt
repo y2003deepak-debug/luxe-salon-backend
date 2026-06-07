@@ -156,10 +156,25 @@ interface SalonApiService {
 
     @PUT("api/bookings/{id}/status")
     suspend fun updateBookingStatus(@Path("id") id: Int, @Body statusUpdate: StatusUpdateDto): BookingDto
+
+    @POST("api/admin/login")
+    suspend fun loginAdmin(@Body body: AdminLoginDto): AdminLoginResponse
 }
 
 data class StatusUpdateDto(
     val status: String
+)
+
+data class AdminLoginDto(
+    val email: String,
+    val password: String
+)
+
+data class AdminLoginResponse(
+    val success: Boolean,
+    val email: String,
+    val displayName: String,
+    val customGreeting: String
 )
 
 // API engine initialization

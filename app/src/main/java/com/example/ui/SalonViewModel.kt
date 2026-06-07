@@ -322,23 +322,29 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // Extremely streamlined simulation: accepting any standard login for testing convenience
         viewModelScope.launch {
-            _isAdminLoggedIn.value = true
-            _authError.value = null
-            
-            // Check if profile exists, if not create
-            val current = repository.adminProfile.first()
-            if (current == null) {
-                repository.saveAdminProfile(
-                    AdminProfile(
-                        id = 1,
-                        email = email,
-                        displayName = "Vance",
-                        customGreeting = "Welcome back, Executive"
+            try {
+                val response = apiService.loginAdmin(AdminLoginDto(email, password))
+                if (response.success) {
+                    _isAdminLoggedIn.value = true
+                    _authError.value = null
+                    
+                    // Save or update AdminProfile locally
+                    repository.saveAdminProfile(
+                        AdminProfile(
+                            id = 1,
+                            email = response.email,
+                            displayName = response.displayName,
+                            customGreeting = response.customGreeting
+                        )
                     )
-                )
+                } else {
+                    _authError.value = "Invalid ID or Password"
+                }
+            } catch (e: Exception) {
+                _authError.value = "Server authentication failed: ${e.message}"
             }
+            updateLogsFromInterceptor()
         }
     }
 

@@ -210,6 +210,29 @@ class MockServerInterceptor : Interceptor {
                         responseCode = 400
                     }
                 }
+                path == "/api/admin/login" && method == "POST" -> {
+                    val reqBody = request.body
+                    var json = ""
+                    if (reqBody != null) {
+                        val buffer = okio.Buffer()
+                        reqBody.writeTo(buffer)
+                        json = buffer.readUtf8()
+                    }
+                    val loginAdapter = moshi.adapter(AdminLoginDto::class.java)
+                    val loginReq = loginAdapter.fromJson(json)
+                    if (loginReq != null && loginReq.email == "admin@luxesalon.com" && loginReq.password == "luxuryadmin123") {
+                        responseBodyString = """{
+                            "success": true,
+                            "email": "admin@luxesalon.com",
+                            "displayName": "Executive Admin",
+                            "customGreeting": "Welcome back, Executive Admin"
+                        }""".trimIndent()
+                        responseCode = 200
+                    } else {
+                        responseBodyString = """{"success": false, "error": "Invalid ID or Password"}"""
+                        responseCode = 401
+                    }
+                }
 
                 else -> {
                     responseBodyString = """{"error": "Not Found"}"""

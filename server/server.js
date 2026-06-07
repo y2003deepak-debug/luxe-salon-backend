@@ -324,6 +324,26 @@ app.put('/api/bookings/:id/status', async (req, res) => {
     }
 });
 
+app.post('/api/admin/login', (req, res) => {
+    const { email, password } = req.body;
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@luxesalon.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "luxuryadmin123";
+
+    if (email === adminEmail && password === adminPassword) {
+        res.json({
+            success: true,
+            email: adminEmail,
+            displayName: "Executive Admin",
+            customGreeting: "Welcome back, Executive Admin"
+        });
+    } else {
+        res.status(401).json({
+            success: false,
+            error: "Invalid ID or Password"
+        });
+    }
+});
+
 
 // Admin global table wipe option for testing
 app.delete('/api/all-tables', async (req, res) => {

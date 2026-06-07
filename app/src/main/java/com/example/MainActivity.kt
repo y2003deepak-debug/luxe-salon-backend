@@ -108,6 +108,7 @@ fun LuxeSalonApp(viewModel: SalonViewModel) {
             ) { targetTab ->
                 when (targetTab) {
                     0 -> LandingScreen(
+                        viewModel = viewModel,
                         onNavigateToBooking = {
                             viewModel.resetBookingFlow()
                             viewModel.selectTab(1)
@@ -284,7 +285,11 @@ data class SalonNavigationItem(
 // SCREEN 0: PREMIUM LANDING PAGE (HOME)
 // ==========================================
 @Composable
-fun LandingScreen(onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit) {
+fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit) {
+    val dynamicServices by viewModel.allServices.collectAsStateWithLifecycle(initialValue = emptyList())
+    val dynamicStylists by viewModel.allStylists.collectAsStateWithLifecycle(initialValue = emptyList())
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 32.dp)
@@ -383,7 +388,7 @@ fun LandingScreen(onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit
             }
         }
 
-        // Curated Services horizontally scrolled list
+        // Curated Services horizontally scrolled list (Dynamic from database)
         item {
             Column(modifier = Modifier.padding(top = 24.dp)) {
                 Row(
@@ -395,14 +400,14 @@ fun LandingScreen(onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit
                 ) {
                     Column {
                         Text(
-                            text = "Curated Services",
+                            text = "Manage Salon Services",
                             color = SoftObsidian,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "Meticulously crafted treatments",
+                            text = "Meticulously crafted treatments loaded from database",
                             color = CharcoalGray.copy(alpha = 0.7f),
                             fontSize = 11.sp
                         )
@@ -411,87 +416,120 @@ fun LandingScreen(onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val mockServices = listOf(
-                    ServiceCardInfo("Signature Styling", "Precision cuts and styling for a unique identity.", "₹120+", Icons.Default.Check),
-                    ServiceCardInfo("Velvet Spa", "Rejuvenating scalp therapies and botanical skin infusions.", "₹180+", Icons.Default.Favorite),
-                    ServiceCardInfo("Editorial Glow", "High-fashion makeup and skin prep for special events.", "₹150+", Icons.Default.Star)
-                )
-
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(mockServices) { service ->
-                        Card(
-                            modifier = Modifier
-                                .width(200.dp)
-                                .height(180.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = SoftWhite),
-                            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
-                        ) {
-                            Column(
+                    if (dynamicServices.isEmpty()) {
+                        item {
+                            Card(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.SpaceBetween
+                                    .width(200.dp)
+                                    .height(180.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = SoftWhite),
+                                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
+                                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Text("No services loaded from database.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                    } else {
+                        items(dynamicServices) { service ->
+                            Card(
+                                modifier = Modifier
+                                    .width(200.dp)
+                                    .height(180.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = SoftWhite),
+                                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(LightContainerGold, CircleShape),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
                                     ) {
-                                        Icon(
-                                            imageVector = service.icon,
-                                            contentDescription = service.title,
-                                            tint = GoldPrimary,
-                                            modifier = Modifier.size(18.dp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .background(LightContainerGold, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = service.name,
+                                                tint = GoldPrimary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .background(GoldPrimary, RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "${service.durationMin} MIN",
+                                                color = SoftWhite,
+                                                fontSize = 7.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Column {
+                                        Text(
+                                            text = service.name,
+                                            color = SoftObsidian,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = service.description.ifBlank { "Premium treatment" },
+                                            color = CharcoalGray.copy(alpha = 0.8f),
+                                            fontSize = 11.sp,
+                                            lineHeight = 14.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                    Box(
-                                        modifier = Modifier
-                                            .background(GoldPrimary, RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "FROM",
-                                            color = SoftWhite,
-                                            fontSize = 7.sp,
-                                            fontWeight = FontWeight.Bold
+                                            text = "₹${String.format("%.0f", service.price)}",
+                                            color = GoldPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.ExtraBold
                                         )
+                                        Button(
+                                            onClick = {
+                                                viewModel.resetBookingFlow()
+                                                viewModel.toggleService(service.name)
+                                                viewModel.selectTab(1)
+                                                viewModel.setWizardStep(2) // Move directly to stylist step
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                            modifier = Modifier.height(26.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                                            shape = RoundedCornerShape(13.dp)
+                                        ) {
+                                            Text("BOOK", color = SoftWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
-
-                                Column {
-                                    Text(
-                                        text = service.title,
-                                        color = SoftObsidian,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                        )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = service.desc,
-                                        color = CharcoalGray.copy(alpha = 0.8f),
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                Text(
-                                    text = service.price,
-                                    color = GoldPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
                             }
                         }
                     }
@@ -661,98 +699,118 @@ fun LandingScreen(onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit
             }
         }
 
-        // Stylist Team visual highlights
+        // Stylist Team visual highlights (Dynamic from database)
         item {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "The Visionaries",
+                    text = "Stylist Operational Roster",
                     color = SoftObsidian,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "Masters of premium elegance",
+                    text = "Masters of premium elegance loaded from database",
                     color = CharcoalGray.copy(alpha = 0.7f),
                     fontSize = 11.sp
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val stylists = listOf(
-                    StylistHighlight("Aarav Sharma", "Master Colorist", "Expertise in luxury balayage & digital shades.", 0),
-                    StylistHighlight("Priya Iyer", "Lead Hair Artisan", "Lead architect of signature visual structures.", 1),
-                    StylistHighlight("Amit Patel", "Creative Director", "Master of styling architectures and modern aesthetics.", 2)
-                )
-
-                stylists.forEachIndexed { index, stylist ->
-                    Row(
+                if (dynamicStylists.isEmpty()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .background(SoftWhite, shape = RoundedCornerShape(8.dp))
+                            .background(SoftWhite, RoundedCornerShape(8.dp))
                             .border(1.dp, GoldPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Decorative Avatar representing premium stylist profile picture
-                        Box(
+                        Text("No stylists loaded from database.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
+                } else {
+                    dynamicStylists.forEachIndexed { index, stylist ->
+                        Row(
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(
-                                    brush = Brush.radialGradient(
-                                        colors = getGradientForIndex(index)
-                                    ),
-                                    shape = CircleShape
-                                )
-                                .border(1.5.dp, GoldPrimary, CircleShape),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .background(SoftWhite, shape = RoundedCornerShape(8.dp))
+                                .border(1.dp, GoldPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stylist.name.split(" ").map { it.take(1) }.joinToString(""),
-                                color = SoftWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        }
+                            // Decorative Avatar representing premium stylist profile picture
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = getGradientForIndex(stylist.avatarColorIndex)
+                                        ),
+                                        shape = CircleShape
+                                    )
+                                    .border(1.5.dp, GoldPrimary, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stylist.name.split(" ").map { it.take(1) }.joinToString(""),
+                                    color = SoftWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stylist.name,
-                                color = SoftObsidian,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = stylist.role,
-                                color = GoldPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stylist.bio,
-                                color = CharcoalGray.copy(alpha = 0.8f),
-                                fontSize = 11.sp
-                            )
-                        }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stylist.name,
+                                        color = SoftObsidian,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (!stylist.isAvailable) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFEF5350).copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                                .border(0.5.dp, Color(0xFFEF5350), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("AWAY", color = Color(0xFFC62828), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = stylist.specialty,
+                                    color = GoldPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Premium artisan specializing in ${stylist.specialty}.",
+                                    color = CharcoalGray.copy(alpha = 0.8f),
+                                    fontSize = 11.sp
+                                )
+                            }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Rating",
-                                tint = GoldPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = " 5.0",
-                                color = SoftObsidian,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Rating",
+                                    tint = GoldPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = " 5.0",
+                                    color = SoftObsidian,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                 }

@@ -1,0 +1,15 @@
+{
+  "name": "luxe-salon-root",
+  "version": "1.0.0",
+  "description": "Root package.json to delegate Node.js build and start commands to the server subdirectory on Render",
+  "private": true,
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

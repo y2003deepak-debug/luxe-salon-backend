@@ -1534,48 +1534,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                             }
                         }
 
-                        // Populate Demo Seed data Helper Trigger (Useful if empty)
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                                border = BorderStroke(1.dp, Color(0xFFEF5350).copy(alpha = 0.2f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Database Maintenance Reset",
-                                            color = Color(0xFFC62828),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "Wipe all bookings, stylists, and custom premium services.",
-                                            color = CharcoalGray.copy(alpha = 0.8f),
-                                            fontSize = 10.sp
-                                        )
-                                    }
-                                    Button(
-                                        onClick = {
-                                            viewModel.loadDemoWork() // Clears all tables
-                                            Toast.makeText(context, "Database Cleaned Successfully", Toast.LENGTH_SHORT).show()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                                        shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.height(32.dp).testTag("wipe_seeds_btn")
-                                    ) {
-                                        Text("WIPE DATABASE", color = SoftWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
+
 
                         // Operational activity logs banner showing recent 5
                         item {

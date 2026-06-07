@@ -2454,7 +2454,17 @@ fun SetAwayUntilDialog(
     onDismiss: () -> Unit,
     onConfirm: (awayUntilDate: String, awayUntilTime: String) -> Unit
 ) {
-    val dates = listOf("Mon, Oct 12", "Tue, Oct 13", "Wed, Oct 14", "Thu, Oct 15", "Fri, Oct 16", "Sat, Oct 17")
+    val dates = remember {
+        val list = mutableListOf<String>()
+        val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
+        val calendar = java.util.Calendar.getInstance()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1) // Start from tomorrow (meaning booking can only be done at least one day in advance)
+        for (i in 0 until 6) {
+            list.add(sdf.format(calendar.time))
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        list
+    }
     val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
 
     var selectedDate by remember { mutableStateOf(dates[0]) }
@@ -2685,12 +2695,23 @@ fun AddStylistDialog(
     onDismiss: () -> Unit,
     onConfirm: (name: String, specialty: String, avatarColorVal: Int, imageUrl: String?, isAvailable: Boolean, awayUntilDate: String?, awayUntilTime: String?) -> Unit
 ) {
+    val dates = remember {
+        val list = mutableListOf<String>()
+        val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
+        val calendar = java.util.Calendar.getInstance()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1) // Start from tomorrow
+        for (i in 0 until 6) {
+            list.add(sdf.format(calendar.time))
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        list
+    }
     var name by remember { mutableStateOf("") }
     var specialty by remember { mutableStateOf("") }
     var selectedColorIndex by remember { mutableStateOf(0) }
     var imageUrl by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
-    var awayUntilDate by remember { mutableStateOf("Mon, Oct 12") }
+    var awayUntilDate by remember { mutableStateOf(dates.firstOrNull() ?: "") }
     var awayUntilTime by remember { mutableStateOf("02:30 PM") }
 
     AlertDialog(
@@ -2889,7 +2910,7 @@ fun AddStylistDialog(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("Mon, Oct 12", "Tue, Oct 13", "Wed, Oct 14", "Thu, Oct 15", "Fri, Oct 16", "Sat, Oct 17").forEach { d ->
+                        dates.forEach { d ->
                             val isSel = awayUntilDate == d
                             Box(
                                 modifier = Modifier
@@ -3013,12 +3034,23 @@ fun EditStylistDialog(
     onDismiss: () -> Unit,
     onConfirm: (newName: String, newSpecialty: String, newColorIndex: Int, newImageUrl: String?, isAvailable: Boolean, awayUntilDate: String?, awayUntilTime: String?) -> Unit
 ) {
+    val dates = remember {
+        val list = mutableListOf<String>()
+        val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
+        val calendar = java.util.Calendar.getInstance()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1) // Start from tomorrow
+        for (i in 0 until 6) {
+            list.add(sdf.format(calendar.time))
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        list
+    }
     var name by remember { mutableStateOf(stylist.name) }
     var specialty by remember { mutableStateOf(stylist.specialty) }
     var selectedColorIndex by remember { mutableStateOf(stylist.avatarColorIndex) }
     var imageUrl by remember { mutableStateOf(stylist.imageUrl ?: "") }
     var isAvailable by remember { mutableStateOf(stylist.isAvailable) }
-    var awayUntilDate by remember { mutableStateOf(stylist.awayUntilDate ?: "Mon, Oct 12") }
+    var awayUntilDate by remember { mutableStateOf(stylist.awayUntilDate ?: (dates.firstOrNull() ?: "")) }
     var awayUntilTime by remember { mutableStateOf(stylist.awayUntilTime ?: "02:30 PM") }
 
     AlertDialog(
@@ -3217,7 +3249,7 @@ fun EditStylistDialog(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("Mon, Oct 12", "Tue, Oct 13", "Wed, Oct 14", "Thu, Oct 15", "Fri, Oct 16", "Sat, Oct 17").forEach { d ->
+                        dates.forEach { d ->
                             val isSel = awayUntilDate == d
                             Box(
                                 modifier = Modifier
@@ -3862,7 +3894,18 @@ fun StepTimeSlotSelection(
     onChooseDate: (String) -> Unit,
     onChooseTime: (String) -> Unit
 ) {
-    val dates = listOf("Mon, Oct 12", "Tue, Oct 13", "Wed, Oct 14", "Thu, Oct 15", "Fri, Oct 16", "Sat, Oct 17")
+    val dates = remember {
+        val list = mutableListOf<String>()
+        val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
+        val calendar = java.util.Calendar.getInstance()
+        // Start from tomorrow (meaning booking can only be done at least one day in advance, today's date is not visible)
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        for (i in 0 until 6) {
+            list.add(sdf.format(calendar.time))
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        list
+    }
     val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
 
     Column(

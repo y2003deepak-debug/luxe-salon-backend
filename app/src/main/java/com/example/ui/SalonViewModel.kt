@@ -236,7 +236,12 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
             servicesList = servicesList.replace("Sculpted Cut", "Sculpted Cut ($cutSubtype)")
         }
         val stylist = _selectedStylist.value ?: "Aarav Sharma"
-        val date = _selectedDate.value ?: "Oct 12"
+        val defaultDate = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH).run {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            format(cal.time)
+        }
+        val date = _selectedDate.value ?: defaultDate
         val time = _selectedTime.value ?: "02:30 PM"
         val phone = phoneInput.value.trim()
         val name = nameInput.value.trim()

@@ -1,0 +1,6 @@
+{
+  "name": "Luxe Salon",
+  "description": "A premium, gold-and-obsidian themed booking and administrative salon management application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

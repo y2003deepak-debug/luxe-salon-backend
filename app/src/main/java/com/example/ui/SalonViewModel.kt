@@ -44,6 +44,9 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
                 // Fetch dynamic stylists from Remote server using Retrofit
                 val stylistDtos = apiService.getStylists()
 
+                // Fetch dynamic bookings from Remote server
+                val bookingDtos = apiService.getBookings()
+
                 // Blow database tables local structures clean to merge with live Remote State
                 repository.clearAllData()
 
@@ -53,6 +56,9 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 stylistDtos.forEach { dto ->
                      repository.insertStylist(dto.toRoomEntity())
+                }
+                bookingDtos.forEach { dto ->
+                     repository.insertBooking(dto.toRoomEntity())
                 }
 
                 _syncState.value = "SUCCESS"

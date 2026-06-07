@@ -176,6 +176,8 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }
+            // Automatically sync with the Render cloud database on app startup
+            syncDatabaseWithServer()
         }
     }
 

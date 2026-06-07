@@ -284,6 +284,47 @@ app.post('/api/bookings', async (req, res) => {
     }
 });
 
+app.delete('/api/bookings/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    try {
+        await Booking.deleteOne({ id });
+        res.status(204).send();
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/api/bookings/:id/status', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    const { status } = req.body;
+    if (!status) {
+        return res.status(400).json({ error: "Missing status" });
+    }
+
+    try {
+        const updatedBooking = await Booking.findOneAndUpdate(
+            { id },
+            { status },
+            { new: true }
+        );
+        if (!updatedBooking) {
+            return res.status(404).json({ error: "Booking not found" });
+        }
+        res.json(updatedBooking);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 // Admin global table wipe option for testing
 app.delete('/api/all-tables', async (req, res) => {
     try {

@@ -280,6 +280,12 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelBooking(booking: Booking) {
         viewModelScope.launch {
             repository.updateBookingStatus(booking.id, "Cancelled")
+            try {
+                apiService.updateBookingStatus(booking.id, StatusUpdateDto("Cancelled"))
+            } catch (e: Exception) {
+                // Soft backend fallback
+            }
+            updateLogsFromInterceptor()
         }
     }
 
@@ -372,12 +378,24 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteBooking(booking: Booking) {
         viewModelScope.launch {
             repository.deleteBooking(booking)
+            try {
+                apiService.deleteBooking(booking.id)
+            } catch (e: Exception) {
+                // Soft backend fallback
+            }
+            updateLogsFromInterceptor()
         }
     }
 
     fun updateBookingStatus(bookingId: Int, status: String) {
         viewModelScope.launch {
             repository.updateBookingStatus(bookingId, status)
+            try {
+                apiService.updateBookingStatus(bookingId, StatusUpdateDto(status))
+            } catch (e: Exception) {
+                // Soft backend fallback
+            }
+            updateLogsFromInterceptor()
         }
     }
 

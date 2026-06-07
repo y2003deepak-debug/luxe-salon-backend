@@ -169,6 +169,47 @@ class MockServerInterceptor : Interceptor {
                         responseCode = 400
                     }
                 }
+                path.startsWith("/api/bookings/") && method == "DELETE" -> {
+                    val idSegment = path.substringAfterLast("/")
+                    val id = idSegment.toIntOrNull()
+                    if (id != null) {
+                        remoteBookings.removeAll { it.id == id }
+                        responseBodyString = "{}"
+                        responseCode = 204
+                    } else {
+                        responseBodyString = """{"error": "Invalid ID"}"""
+                        responseCode = 400
+                    }
+                }
+                path.startsWith("/api/bookings/") && path.endsWith("/status") && method == "PUT" -> {
+                    val idSegment = path.removePrefix("/api/bookings/").substringBefore("/")
+                    val id = idSegment.toIntOrNull()
+                    val reqBody = request.body
+                    var json = ""
+                    if (reqBody != null) {
+                        val buffer = okio.Buffer()
+                        reqBody.writeTo(buffer)
+                        json = buffer.readUtf8()
+                    }
+                    val statusAdapter = moshi.adapter(StatusUpdateDto::class.java)
+                    val statusUpdate = statusAdapter.fromJson(json)
+                    if (id != null && statusUpdate != null) {
+                        val index = remoteBookings.indexOfFirst { it.id == id }
+                        if (index != -1) {
+                            val updated = remoteBookings[index].copy(status = statusUpdate.status)
+                            remoteBookings[index] = updated
+                            val itemAdapter = moshi.adapter(BookingDto::class.java)
+                            responseBodyString = itemAdapter.toJson(updated)
+                            responseCode = 200
+                        } else {
+                            responseBodyString = """{"error": "Booking not found"}"""
+                            responseCode = 404
+                        }
+                    } else {
+                        responseBodyString = """{"error": "Invalid body or ID"}"""
+                        responseCode = 400
+                    }
+                }
 
                 else -> {
                     responseBodyString = """{"error": "Not Found"}"""

@@ -150,7 +150,17 @@ interface SalonApiService {
 
     @POST("api/bookings")
     suspend fun createBooking(@Body booking: BookingDto): BookingDto
+
+    @DELETE("api/bookings/{id}")
+    suspend fun deleteBooking(@Path("id") id: Int): Response<Unit>
+
+    @PUT("api/bookings/{id}/status")
+    suspend fun updateBookingStatus(@Path("id") id: Int, @Body statusUpdate: StatusUpdateDto): BookingDto
 }
+
+data class StatusUpdateDto(
+    val status: String
+)
 
 // API engine initialization
 object RetrofitClient {

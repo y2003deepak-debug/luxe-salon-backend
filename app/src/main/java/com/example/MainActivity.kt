@@ -1220,10 +1220,8 @@ fun AdminPortalScreen(viewModel: SalonViewModel) {
 
 @Composable
 fun AdminAuthScreen(viewModel: SalonViewModel) {
-    val isSignUp by viewModel.isShowingSignUp.collectAsStateWithLifecycle()
     val email by viewModel.authEmail.collectAsStateWithLifecycle()
     val password by viewModel.authPassword.collectAsStateWithLifecycle()
-    val name by viewModel.authName.collectAsStateWithLifecycle()
     val error by viewModel.authError.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
@@ -1245,7 +1243,7 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
             letterSpacing = 2.sp
         )
         Text(
-            text = if (isSignUp) "Aura Administrative Sign Up" else "Access Administration Portal",
+            text = "Access Administration Portal",
             color = SoftObsidian,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -1254,106 +1252,12 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
         )
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = GoldPrimary.copy(alpha = 0.05f)),
-            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.2f))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "PRE-CONFIGURED TEST CREDENTIALS",
-                    color = GoldPrimary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Email: admin@luxesalon.com",
-                        color = SoftObsidian.copy(alpha = 0.75f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "•",
-                        color = GoldPrimary.copy(alpha = 0.5f),
-                        fontSize = 11.sp
-                    )
-                    Text(
-                        text = "Pass: luxuryadmin123",
-                        color = SoftObsidian.copy(alpha = 0.75f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-
-        Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(containerColor = SoftWhite),
             border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                // Selector Switch Tab
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(GoldBackground, RoundedCornerShape(100.dp))
-                        .padding(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = if (!isSignUp) GoldPrimary else Color.Transparent,
-                                shape = RoundedCornerShape(100.dp)
-                            )
-                            .clickable { viewModel.setShowingSignUp(false) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "LOGIN",
-                            color = if (!isSignUp) SoftWhite else SoftObsidian,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = if (isSignUp) GoldPrimary else Color.Transparent,
-                                shape = RoundedCornerShape(100.dp)
-                            )
-                            .clickable { viewModel.setShowingSignUp(true) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "SIGN UP",
-                            color = if (isSignUp) SoftWhite else SoftObsidian,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 if (error != null) {
                     Text(
                         text = error ?: "",
@@ -1361,25 +1265,6 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                }
-
-                if (isSignUp) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { viewModel.authName.value = it },
-                        label = { Text("Display Name") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .testTag("admin_register_name"),
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = GoldPrimary,
-                            unfocusedIndicatorColor = GoldPrimary.copy(alpha = 0.2f),
-                            focusedContainerColor = GoldBackground,
-                            unfocusedContainerColor = GoldBackground
-                        )
                     )
                 }
 
@@ -1430,7 +1315,7 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
 
                 Button(
                     onClick = {
-                        if (isSignUp) viewModel.registerAdmin() else viewModel.loginAdmin()
+                        viewModel.loginAdmin()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = SoftObsidian),
                     modifier = Modifier
@@ -1440,59 +1325,12 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = if (isSignUp) "CREATE ACCOUNT" else "ENTER AURA GATE",
+                        text = "LOGIN",
                         color = SoftWhite,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-        Text(
-            text = "--- OR CONTINUE WITH ---",
-            fontSize = 10.sp,
-            color = CharcoalGray.copy(alpha = 0.5f),
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Button(
-                onClick = {
-                    viewModel.authEmail.value = "google.admin@aurasalon.com"
-                    viewModel.authPassword.value = "socialpass123"
-                    viewModel.loginAdmin()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = SoftWhite),
-                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.3f)),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(text = "Google", color = SoftObsidian, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-            }
-
-            Button(
-                onClick = {
-                    viewModel.authEmail.value = "fb.admin@aurasalon.com"
-                    viewModel.authPassword.value = "socialpass123"
-                    viewModel.loginAdmin()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = SoftWhite),
-                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.3f)),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(text = "Facebook", color = SoftObsidian, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
         }
     }

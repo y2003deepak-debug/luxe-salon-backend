@@ -1352,6 +1352,9 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
     var showAddStylistDialog by remember { mutableStateOf(false) }
     var showEditStylistDialog by remember { mutableStateOf<Stylist?>(null) }
     var showSetAwayDialog by remember { mutableStateOf<Stylist?>(null) }
+    var serviceToDelete by remember { mutableStateOf<SalonService?>(null) }
+    var stylistToDelete by remember { mutableStateOf<Stylist?>(null) }
+    var bookingToDelete by remember { mutableStateOf<Booking?>(null) }
 
     // Booking list filters
     var bookingPhoneSearch by remember { mutableStateOf("") }
@@ -1810,8 +1813,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
 
                                             IconButton(
                                                 onClick = {
-                                                    viewModel.deleteStylist(stylist)
-                                                    Toast.makeText(context, "${stylist.name} Roster Removed", Toast.LENGTH_SHORT).show()
+                                                    stylistToDelete = stylist
                                                 },
                                                 modifier = Modifier.size(32.dp).testTag("delete_stylist_bin_${stylist.id}")
                                             ) {
@@ -1998,8 +2000,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                     // Action: Delete record permanently
                                                     Button(
                                                         onClick = {
-                                                            viewModel.deleteBooking(booking)
-                                                            Toast.makeText(context, "Appointment Purged From Registry", Toast.LENGTH_SHORT).show()
+                                                            bookingToDelete = booking
                                                         },
                                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                                         shape = RoundedCornerShape(4.dp),
@@ -2178,8 +2179,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                     }
                                                     IconButton(
                                                         onClick = {
-                                                            viewModel.deleteService(s)
-                                                            Toast.makeText(context, "Service ${s.name} deleted", Toast.LENGTH_SHORT).show()
+                                                            serviceToDelete = s
                                                         },
                                                         modifier = Modifier.size(24.dp).testTag("delete_service_btn_${s.name}")
                                                     ) {
@@ -2272,6 +2272,123 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                 viewModel.updateStylistAvailabilityWithTime(currentStylist.id, false, date, time)
                 showSetAwayDialog = null
                 Toast.makeText(context, "${currentStylist.name} set away until $date @ $time", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    serviceToDelete?.let { service ->
+        AlertDialog(
+            onDismissRequest = { serviceToDelete = null },
+            title = {
+                Text(
+                    text = "Are you sure?",
+                    color = SoftObsidian,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Do you really want to delete the service \"${service.name}\"? This action cannot be undone.",
+                    fontSize = 12.sp,
+                    color = CharcoalGray.copy(alpha = 0.7f)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteService(service)
+                        serviceToDelete = null
+                        Toast.makeText(context, "Service ${service.name} deleted", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("YES", color = Color(0xFFC62828), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { serviceToDelete = null }
+                ) {
+                    Text("NO", color = SoftObsidian)
+                }
+            }
+        )
+    }
+
+    stylistToDelete?.let { stylist ->
+        AlertDialog(
+            onDismissRequest = { stylistToDelete = null },
+            title = {
+                Text(
+                    text = "Are you sure?",
+                    color = SoftObsidian,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Do you really want to remove stylist \"${stylist.name}\" from the operational roster?",
+                    fontSize = 12.sp,
+                    color = CharcoalGray.copy(alpha = 0.7f)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteStylist(stylist)
+                        stylistToDelete = null
+                        Toast.makeText(context, "${stylist.name} Roster Removed", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("YES", color = Color(0xFFC62828), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { stylistToDelete = null }
+                ) {
+                    Text("NO", color = SoftObsidian)
+                }
+            }
+        )
+    }
+
+    bookingToDelete?.let { booking ->
+        AlertDialog(
+            onDismissRequest = { bookingToDelete = null },
+            title = {
+                Text(
+                    text = "Are you sure?",
+                    color = SoftObsidian,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Do you really want to delete the booking for \"${booking.clientName}\"? This will purge it from the registry.",
+                    fontSize = 12.sp,
+                    color = CharcoalGray.copy(alpha = 0.7f)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteBooking(booking)
+                        bookingToDelete = null
+                        Toast.makeText(context, "Appointment Purged From Registry", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("YES", color = Color(0xFFC62828), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { bookingToDelete = null }
+                ) {
+                    Text("NO", color = SoftObsidian)
+                }
             }
         )
     }

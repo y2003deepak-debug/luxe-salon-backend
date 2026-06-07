@@ -115,8 +115,7 @@ fun LuxeSalonApp(viewModel: SalonViewModel) {
                         },
                         onBookStyle = { styleName ->
                             viewModel.resetBookingFlow()
-                            viewModel.selectedCuttingStyleSubtype.value = styleName
-                            viewModel.toggleService("Sculpted Cut") // Pre-select Sculpted Cut service!
+                            viewModel.toggleService(styleName) // Pre-select the premium service directly!
                             viewModel.selectTab(1)
                             viewModel.setWizardStep(2) // Skip selecting services, move directly to stylist step!
                         }
@@ -288,6 +287,8 @@ data class SalonNavigationItem(
 fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, onBookStyle: (String) -> Unit) {
     val dynamicServices by viewModel.allServices.collectAsStateWithLifecycle(initialValue = emptyList())
     val dynamicStylists by viewModel.allStylists.collectAsStateWithLifecycle(initialValue = emptyList())
+    val standardServices = remember(dynamicServices) { dynamicServices.filter { !it.isPremium } }
+    val premiumServices = remember(dynamicServices) { dynamicServices.filter { it.isPremium } }
     val context = LocalContext.current
 
     LazyColumn(
@@ -420,7 +421,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (dynamicServices.isEmpty()) {
+                    if (standardServices.isEmpty()) {
                         item {
                             Card(
                                 modifier = Modifier
@@ -436,7 +437,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                             }
                         }
                     } else {
-                        items(dynamicServices) { service ->
+                        items(standardServices) { service ->
                             Card(
                                 modifier = Modifier
                                     .width(200.dp)
@@ -565,131 +566,121 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val cuttingStyles = listOf(
-                    CuttingStyleInfo(
-                        "Royal Taper Fade",
-                        "शाही टेपर फेड",
-                        "Precision-engineered classic finish, seamless side blend.",
-                        "Round & Oval Faces • Soft hair",
-                        "₹350"
-                    ),
-                    CuttingStyleInfo(
-                        "Textured Feather Crop",
-                        "लेयर्ड फेदर क्रॉप",
-                        "Organic layered volume with sharp fluid crown movement.",
-                        "Square & Heart Faces • Thick hair",
-                        "₹450"
-                    ),
-                    CuttingStyleInfo(
-                        "Executive Pompadour",
-                        "द एक्सीक्यूटिव पॉम्पाडोर",
-                        "High royal volume front sweep with meticulous temple shape.",
-                        "All Face Types • Voluble hair",
-                        "₹300"
-                    ),
-                    CuttingStyleInfo(
-                        "Velvet Bob Contour",
-                        "मखमली बॉब",
-                        "Ultra-sleek French bob lines with custom side profile shaping.",
-                        "Oval & Diamond Faces • Straight hair",
-                        "₹400"
-                    )
-                )
-
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(cuttingStyles) { style ->
-                        Card(
-                            modifier = Modifier
-                                .width(220.dp)
-                                .height(260.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = SoftWhite),
-                            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
-                        ) {
-                            Column(
+                    if (premiumServices.isEmpty()) {
+                        item {
+                            Card(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.SpaceBetween
+                                    .width(220.dp)
+                                    .height(260.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = SoftWhite),
+                                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
                             ) {
-                                Column {
-                                    // Custom Vector drawing of scissors_cutting!
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(80.dp)
-                                            .background(LightContainerGold, RoundedCornerShape(8.dp)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Image(
-                                            painter = painterResource(id = R.drawable.ic_scissors_cutting),
-                                            contentDescription = "Cutting Style Icon",
-                                            modifier = Modifier.size(52.dp)
+                                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Text("No premium hair sculptures configured.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                    } else {
+                        items(premiumServices) { service ->
+                            Card(
+                                modifier = Modifier
+                                    .width(220.dp)
+                                    .height(260.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = SoftWhite),
+                                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        // Custom Vector drawing of scissors_cutting!
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(80.dp)
+                                                .background(LightContainerGold, RoundedCornerShape(8.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Image(
+                                                painter = painterResource(id = R.drawable.ic_scissors_cutting),
+                                                contentDescription = "Cutting Style Icon",
+                                                modifier = Modifier.size(52.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Text(
+                                            text = service.name,
+                                            color = SoftObsidian,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
+                                        if (service.nameHindi.isNotBlank()) {
+                                            Text(
+                                                text = service.nameHindi,
+                                                color = GoldPrimary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = service.description,
+                                            color = CharcoalGray.copy(alpha = 0.8f),
+                                            fontSize = 10.sp,
+                                            lineHeight = 13.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (service.suitability.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = service.suitability,
+                                                color = CharcoalGray.copy(alpha = 0.5f),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    Text(
-                                        text = style.nameEnglish,
-                                        color = SoftObsidian,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = style.nameHindi,
-                                        color = GoldPrimary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = style.desc,
-                                        color = CharcoalGray.copy(alpha = 0.8f),
-                                        fontSize = 10.sp,
-                                        lineHeight = 13.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = style.suitability,
-                                        color = CharcoalGray.copy(alpha = 0.5f),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = style.price,
-                                        color = SoftObsidian,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-
-                                    Button(
-                                        onClick = { onBookStyle(style.nameEnglish) },
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                        modifier = Modifier
-                                            .height(28.dp)
-                                            .testTag("book_style_${style.nameEnglish.lowercase().replace(" ", "_")}"),
-                                        colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
-                                        shape = RoundedCornerShape(14.dp)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "BOOK",
-                                            color = SoftWhite,
-                                            fontSize = 9.sp,
+                                            text = "₹${service.price.toInt()}",
+                                            color = SoftObsidian,
+                                            fontSize = 14.sp,
                                             fontWeight = FontWeight.ExtraBold
                                         )
+
+                                        Button(
+                                            onClick = { onBookStyle(service.name) },
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                            modifier = Modifier
+                                                .height(28.dp)
+                                                .testTag("book_style_${service.name.lowercase().replace(" ", "_")}"),
+                                            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                                            shape = RoundedCornerShape(14.dp)
+                                        ) {
+                                            Text(
+                                                text = "BOOK",
+                                                color = SoftWhite,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -2371,8 +2362,8 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                             if (showAddServiceDialog) {
                                 AddServiceConfigDialog(
                                     onDismiss = { showAddServiceDialog = false },
-                                    onConfirm = { name, price, desc, duration ->
-                                        viewModel.createService(name, price, desc, duration)
+                                    onConfirm = { name, price, desc, duration, nameHindi, suitability, isPremium ->
+                                        viewModel.createService(name, price, desc, duration, nameHindi, suitability, isPremium)
                                         showAddServiceDialog = false
                                         Toast.makeText(context, "Service $name ($duration mins) added successfully", Toast.LENGTH_SHORT).show()
                                     }
@@ -2578,12 +2569,15 @@ fun SetAwayUntilDialog(
 @Composable
 fun AddServiceConfigDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, price: Double, description: String, durationMin: Int) -> Unit
+    onConfirm: (name: String, price: Double, description: String, durationMin: Int, nameHindi: String, suitability: String, isPremium: Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var priceStr by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var durationStr by remember { mutableStateOf("30") }
+    var nameHindi by remember { mutableStateOf("") }
+    var suitability by remember { mutableStateOf("") }
+    var isPremium by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2605,6 +2599,20 @@ fun AddServiceConfigDialog(
                     label = { Text("Service Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_add_service_name"),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = GoldPrimary,
+                        unfocusedIndicatorColor = GoldPrimary.copy(alpha = 0.15f),
+                        focusedContainerColor = GoldBackground,
+                        unfocusedContainerColor = GoldBackground
+                    )
+                )
+
+                OutlinedTextField(
+                    value = nameHindi,
+                    onValueChange = { nameHindi = it },
+                    label = { Text("Hindi Name (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("dialog_add_service_name_hindi"),
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = GoldPrimary,
                         unfocusedIndicatorColor = GoldPrimary.copy(alpha = 0.15f),
@@ -2648,6 +2656,20 @@ fun AddServiceConfigDialog(
                 )
 
                 OutlinedTextField(
+                    value = suitability,
+                    onValueChange = { suitability = it },
+                    label = { Text("Suitability (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("dialog_add_service_suitability"),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = GoldPrimary,
+                        unfocusedIndicatorColor = GoldPrimary.copy(alpha = 0.15f),
+                        focusedContainerColor = GoldBackground,
+                        unfocusedContainerColor = GoldBackground
+                    )
+                )
+
+                OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Service Description") },
@@ -2660,6 +2682,27 @@ fun AddServiceConfigDialog(
                         unfocusedContainerColor = GoldBackground
                     )
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isPremium = !isPremium }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Checkbox(
+                        checked = isPremium,
+                        onCheckedChange = { isPremium = it },
+                        colors = CheckboxDefaults.colors(checkedColor = GoldPrimary)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Mark as Premium Hair Sculpture",
+                        color = SoftObsidian,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         },
         confirmButton = {
@@ -2668,7 +2711,7 @@ fun AddServiceConfigDialog(
                     val price = priceStr.toDoubleOrNull() ?: 100.0
                     val duration = durationStr.toIntOrNull() ?: 30
                     if (name.isNotBlank() && description.isNotBlank()) {
-                        onConfirm(name.trim(), price, description.trim(), duration)
+                        onConfirm(name.trim(), price, description.trim(), duration, nameHindi.trim(), suitability.trim(), isPremium)
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),

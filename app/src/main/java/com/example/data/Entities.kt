@@ -43,6 +43,9 @@ data class SalonService(
     val name: String,
     val price: Double,
     val description: String,
-    val durationMin: Int = 30
+    val durationMin: Int = 30,
+    val nameHindi: String = "",
+    val suitability: String = "",
+    val isPremium: Boolean = false
 )
 

@@ -445,9 +445,17 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         return base
     }
 
-    fun createService(name: String, price: Double, description: String, durationMin: Int) {
+    fun createService(name: String, price: Double, description: String, durationMin: Int, nameHindi: String = "", suitability: String = "", isPremium: Boolean = false) {
         viewModelScope.launch {
-            val serviceObj = SalonService(name = name, price = price, description = description, durationMin = durationMin)
+            val serviceObj = SalonService(
+                name = name, 
+                price = price, 
+                description = description, 
+                durationMin = durationMin,
+                nameHindi = nameHindi,
+                suitability = suitability,
+                isPremium = isPremium
+            )
             repository.insertService(serviceObj)
             try {
                 apiService.createService(SalonServiceDto.fromRoomEntity(serviceObj))

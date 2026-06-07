@@ -15,10 +15,15 @@ class MockServerInterceptor : Interceptor {
         var logs = mutableListOf<String>()
 
         var remoteServices = mutableListOf(
-            SalonServiceDto(1, "Sculpted Cut", 120.0, "Elite cut & visual architecture consultation", 45),
-            SalonServiceDto(2, "Artisan Color", 250.0, "Custom balayage coloring & gloss therapy", 120),
-            SalonServiceDto(3, "Deep Hydration", 85.0, "Intense botanical scalp organic bath", 30),
-            SalonServiceDto(4, "Signature Blowout", 75.0, "Silk infusion treatment extra volume blowout", 60)
+            SalonServiceDto(1, "Sculpted Cut", 120.0, "Elite cut & visual architecture consultation", 45, "", "", false),
+            SalonServiceDto(2, "Artisan Color", 250.0, "Custom balayage coloring & gloss therapy", 120, "", "", false),
+            SalonServiceDto(3, "Deep Hydration", 85.0, "Intense botanical scalp organic bath", 30, "", "", false),
+            SalonServiceDto(4, "Signature Blowout", 75.0, "Silk infusion treatment extra volume blowout", 60, "", "", false),
+            // Premium Hair Sculptures
+            SalonServiceDto(5, "Royal Taper Fade", 350.0, "Precision-engineered classic finish, seamless side blend.", 45, "शाही टेपर फेड", "Round & Oval Faces • Soft hair", true),
+            SalonServiceDto(6, "Textured Feather Crop", 450.0, "Organic layered volume with sharp fluid crown movement.", 45, "लेयर्ड फेदर क्रॉप", "Square & Heart Faces • Thick hair", true),
+            SalonServiceDto(7, "Executive Pompadour", 300.0, "High royal volume front sweep with meticulous temple shape.", 45, "द एक्सीक्यूटिव पॉम्पाडोर", "All Face Types • Voluble hair", true),
+            SalonServiceDto(8, "Velvet Bob Contour", 400.0, "Ultra-sleek French bob lines with custom side profile shaping.", 45, "मखमली बॉब", "Oval & Diamond Faces • Straight hair", true)
         )
 
         var remoteStylists = mutableListOf(

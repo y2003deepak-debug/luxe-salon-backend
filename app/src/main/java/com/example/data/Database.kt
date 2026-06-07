@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Booking::class, Stylist::class, AdminProfile::class, SalonService::class], version = 5, exportSchema = false)
+@Database(entities = [Booking::class, Stylist::class, AdminProfile::class, SalonService::class], version = 6, exportSchema = false)
 abstract class SalonDatabase : RoomDatabase() {
     abstract fun bookingDao(): BookingDao
     abstract fun stylistDao(): StylistDao

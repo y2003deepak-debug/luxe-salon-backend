@@ -19,14 +19,20 @@ data class SalonServiceDto(
     val name: String,
     val price: Double,
     val description: String,
-    val durationMin: Int
+    val durationMin: Int,
+    val nameHindi: String = "",
+    val suitability: String = "",
+    val isPremium: Boolean = false
 ) {
     fun toRoomEntity() = SalonService(
         id = id,
         name = name,
         price = price,
         description = description,
-        durationMin = durationMin
+        durationMin = durationMin,
+        nameHindi = nameHindi,
+        suitability = suitability,
+        isPremium = isPremium
     )
 
     companion object {
@@ -35,7 +41,10 @@ data class SalonServiceDto(
             name = entity.name,
             price = entity.price,
             description = entity.description,
-            durationMin = entity.durationMin
+            durationMin = entity.durationMin,
+            nameHindi = entity.nameHindi,
+            suitability = entity.suitability,
+            isPremium = entity.isPremium
         )
     }
 }

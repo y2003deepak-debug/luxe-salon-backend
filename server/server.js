@@ -17,10 +17,15 @@ let isMongoConnected = false;
 
 // Default initial seed data
 const defaultServices = [
-    { id: 1, name: "Sculpted Cut", price: 120.0, description: "Elite cut & visual architecture consultation", durationMin: 45 },
-    { id: 2, name: "Artisan Color", price: 250.0, description: "Custom balayage coloring & gloss therapy", durationMin: 120 },
-    { id: 3, name: "Deep Hydration", price: 85.0, description: "Intense botanical scalp organic bath", durationMin: 30 },
-    { id: 4, name: "Signature Blowout", price: 75.0, description: "Silk infusion treatment extra volume blowout", durationMin: 60 }
+    { id: 1, name: "Sculpted Cut", price: 120.0, description: "Elite cut & visual architecture consultation", durationMin: 45, nameHindi: "", suitability: "", isPremium: false },
+    { id: 2, name: "Artisan Color", price: 250.0, description: "Custom balayage coloring & gloss therapy", durationMin: 120, nameHindi: "", suitability: "", isPremium: false },
+    { id: 3, name: "Deep Hydration", price: 85.0, description: "Intense botanical scalp organic bath", durationMin: 30, nameHindi: "", suitability: "", isPremium: false },
+    { id: 4, name: "Signature Blowout", price: 75.0, description: "Silk infusion treatment extra volume blowout", durationMin: 60, nameHindi: "", suitability: "", isPremium: false },
+    // Premium Hair Sculptures
+    { id: 5, name: "Royal Taper Fade", price: 350.0, description: "Precision-engineered classic finish, seamless side blend.", durationMin: 45, nameHindi: "शाही टेपर फेड", suitability: "Round & Oval Faces • Soft hair", isPremium: true },
+    { id: 6, name: "Textured Feather Crop", price: 450.0, description: "Organic layered volume with sharp fluid crown movement.", durationMin: 45, nameHindi: "लेयर्ड फेदर क्रॉप", suitability: "Square & Heart Faces • Thick hair", isPremium: true },
+    { id: 7, name: "Executive Pompadour", price: 300.0, description: "High royal volume front sweep with meticulous temple shape.", durationMin: 45, nameHindi: "द एक्सीक्यूटिव पॉम्पाडोर", suitability: "All Face Types • Voluble hair", isPremium: true },
+    { id: 8, name: "Velvet Bob Contour", price: 400.0, description: "Ultra-sleek French bob lines with custom side profile shaping.", durationMin: 45, nameHindi: "मखमली बॉब", suitability: "Oval & Diamond Faces • Straight hair", isPremium: true }
 ];
 
 const defaultStylists = [
@@ -36,7 +41,10 @@ const serviceSchema = new mongoose.Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true },
     description: { type: String, default: "" },
-    durationMin: { type: Number, default: 30 }
+    durationMin: { type: Number, default: 30 },
+    nameHindi: { type: String, default: "" },
+    suitability: { type: String, default: "" },
+    isPremium: { type: Boolean, default: false }
 });
 
 const stylistSchema = new mongoose.Schema({
@@ -70,15 +78,19 @@ const Booking = mongoose.model('Booking', bookingSchema);
 // MongoDB Database Seed
 async function seedMongoIfEmpty() {
     try {
-        const serviceCount = await Service.countDocuments();
-        if (serviceCount === 0) {
-            await Service.insertMany(defaultServices);
-            console.log("Seeded default services to MongoDB.");
+        for (const service of defaultServices) {
+            const exists = await Service.findOne({ id: service.id });
+            if (!exists) {
+                await Service.create(service);
+                console.log(`Seeded default service "${service.name}" to MongoDB.`);
+            }
         }
-        const stylistCount = await Stylist.countDocuments();
-        if (stylistCount === 0) {
-            await Stylist.insertMany(defaultStylists);
-            console.log("Seeded default stylists to MongoDB.");
+        for (const stylist of defaultStylists) {
+            const exists = await Stylist.findOne({ id: stylist.id });
+            if (!exists) {
+                await Stylist.create(stylist);
+                console.log(`Seeded default stylist "${stylist.name}" to MongoDB.`);
+            }
         }
     } catch (err) {
         console.error("Error seeding MongoDB database:", err);
@@ -148,7 +160,7 @@ app.get('/api/services', async (req, res) => {
 });
 
 app.post('/api/services', async (req, res) => {
-    const { name, price, description, durationMin } = req.body;
+    const { name, price, description, durationMin, nameHindi, suitability, isPremium } = req.body;
     if (!name || isNaN(price)) {
         return res.status(400).json({ error: "Missing name or valid price" });
     }
@@ -161,7 +173,10 @@ app.post('/api/services', async (req, res) => {
             name,
             price: parseFloat(price),
             description: description || "",
-            durationMin: parseInt(durationMin) || 30
+            durationMin: parseInt(durationMin) || 30,
+            nameHindi: nameHindi || "",
+            suitability: suitability || "",
+            isPremium: isPremium === true || isPremium === "true"
         });
         await newService.save();
         res.status(201).json(newService);

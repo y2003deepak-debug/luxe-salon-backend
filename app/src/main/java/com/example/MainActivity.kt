@@ -1,6 +1,17 @@
 package com.example
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -38,6 +49,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +75,13 @@ val LightContainerGold = Color(0xFFF9F5EC)
 val SoftWhite = Color(0xFFFFFFFF)
 val SleekBorder = Color(0xFFE5E7EB)
 
+val LocalLanguage = staticCompositionLocalOf { "en" }
+
+@Composable
+fun t(en: String, hi: String): String {
+    return if (LocalLanguage.current == "hi") hi else en
+}
+
 class MainActivity : ComponentActivity() {
     private val viewModel: SalonViewModel by viewModels()
 
@@ -68,8 +89,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                LuxeSalonApp(viewModel)
+            val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
+            val currentLang = selectedLanguage ?: "en"
+
+            CompositionLocalProvider(LocalLanguage provides currentLang) {
+                MyApplicationTheme {
+                    if (selectedLanguage == null) {
+                        LanguageSelectionScreen(
+                            onLanguageSelected = { lang ->
+                                viewModel.selectLanguage(lang)
+                            }
+                        )
+                    } else {
+                        LuxeSalonApp(viewModel)
+                    }
+                }
             }
         }
     }
@@ -78,12 +112,86 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LuxeSalonApp(viewModel: SalonViewModel) {
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = GoldBackground,
         topBar = {
-            LuxeTopBar()
+            Column {
+                LuxeTopBar(viewModel)
+                if (syncState == "SYNCING") {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(3.dp),
+                        color = GoldPrimary,
+                        trackColor = GoldPrimary.copy(alpha = 0.15f)
+                    )
+                } else if (syncState == "ERROR") {
+                    Surface(
+                        color = Color(0xFFFDF2F2),
+                        contentColor = Color(0xFF9B1C1C),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .drawBehind {
+                                drawLine(
+                                    color = Color(0xFFF8B4B4),
+                                    start = Offset(0f, size.height),
+                                    end = Offset(size.width, size.height),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Sync Error",
+                                    tint = Color(0xFFE02424),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "सर्वर कनेक्शन समस्या। ऑफ़लाइन मोड सक्रिय। (Server connection issue. Offline mode active.)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                            TextButton(
+                                onClick = { viewModel.syncDatabaseWithServer() },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE02424)),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(28.dp).testTag("sync_retry_button")
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Retry",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "पुनः प्रयास (Retry)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
         bottomBar = {
             LuxeBottomNavigationBar(
@@ -130,7 +238,7 @@ fun LuxeSalonApp(viewModel: SalonViewModel) {
 }
 
 @Composable
-fun LuxeTopBar() {
+fun LuxeTopBar(viewModel: SalonViewModel) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -164,46 +272,64 @@ fun LuxeTopBar() {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "L",
+                        text = "M",
                         color = GoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                 }
-                Row {
+                Column(
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Text(
-                        text = "LUXE ",
+                        text = "MAYANK GENTS",
                         color = SoftObsidian,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-0.5).sp
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                        lineHeight = 14.sp
                     )
                     Text(
-                        text = "SALON",
+                        text = "PARLOUR",
                         color = GoldPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-0.5).sp
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        lineHeight = 12.sp
                     )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(GoldPrimary.copy(alpha = 0.1f), CircleShape)
-                    .border(1.dp, GoldPrimary.copy(alpha = 0.2f), CircleShape)
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
+                val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
+                TextButton(
+                    onClick = {
+                        val nextLang = if (selectedLanguage == "hi") "en" else "hi"
+                        viewModel.selectLanguage(nextLang)
+                    },
+                    modifier = Modifier.height(32.dp).testTag("lang_toggle_btn"),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = if (selectedLanguage == "hi") "ENGLISH" else "हिंदी",
+                        color = GoldPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                Image(
+                    painter = painterResource(id = R.drawable.user_avatar),
+                    contentDescription = "Mayank Profile",
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.sweepGradient(
-                                colors = listOf(SoftObsidian, GoldPrimary, SoftObsidian)
-                            ),
-                            shape = CircleShape
-                        )
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, GoldPrimary, CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
@@ -236,10 +362,10 @@ fun LuxeBottomNavigationBar(
             modifier = Modifier.height(64.dp)
         ) {
             val tabs = listOf(
-                SalonNavigationItem(0, "Home", Icons.Default.Home, "home_tab"),
-                SalonNavigationItem(1, "Booking", Icons.Default.DateRange, "booking_tab"),
-                SalonNavigationItem(2, "Lookup", Icons.Default.Search, "lookup_tab"),
-                SalonNavigationItem(3, "Admin", Icons.Default.Person, "admin_tab")
+                SalonNavigationItem(0, t("Home", "मुख्य"), Icons.Default.Home, "home_tab"),
+                SalonNavigationItem(1, t("Booking", "बुकिंग"), Icons.Default.DateRange, "booking_tab"),
+                SalonNavigationItem(2, t("Lookup", "खोजें"), Icons.Default.Search, "lookup_tab"),
+                SalonNavigationItem(3, t("Admin", "एडमिन"), Icons.Default.Person, "admin_tab")
             )
 
             tabs.forEach { item ->
@@ -295,94 +421,240 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        // High fidelity Hero Banner using custom drawing overlay to look gorgeous
+        // High fidelity Hero Banner matching Mayank Gents Parlour design system
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = listOf(SoftObsidian, CharcoalGray)
+                            colors = listOf(Color(0xFF0A0A0A), Color(0xFF1A1A1A))
                         )
                     )
             ) {
-                // Background artistic lines representing luxury threads
-                Canvas(modifier = Modifier.fillMaxSize()) {
+                // Background artistic lines representing luxury threads and decorative arc
+                Canvas(modifier = Modifier.matchParentSize()) {
                     val canvasWidth = size.width
                     val canvasHeight = size.height
                     
-                    // Golden strands representing premium salon styling art
-                    drawCircle(
-                        color = GoldPrimary.copy(alpha = 0.08f),
-                        radius = canvasHeight * 0.8f,
-                        center = Offset(canvasWidth * 0.9f, canvasHeight * 0.2f)
-                    )
-                    drawCircle(
-                        color = GoldPrimary.copy(alpha = 0.04f),
-                        radius = canvasHeight * 0.5f,
-                        center = Offset(canvasWidth * 0.1f, canvasHeight * 0.8f)
+                    // Decorative arc line as seen in image/CSS
+                    drawOval(
+                        color = GoldPrimary.copy(alpha = 0.2f),
+                        topLeft = Offset(canvasWidth * 0.1f, -canvasHeight * 0.1f),
+                        size = androidx.compose.ui.geometry.Size(canvasWidth * 0.8f, canvasHeight * 1.2f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
                     )
                 }
 
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 48.dp),
                     horizontalAlignment = Alignment.Start
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .background(GoldPrimary.copy(alpha = 0.15f), RoundedCornerShape(100.dp))
-                            .border(1.dp, GoldPrimary, RoundedCornerShape(100.dp))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "EXCLUSIVITY DEFINED",
-                            color = GoldPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp,
-                            letterSpacing = 2.sp
-                        )
+
+
+                    // Headline
+                    val titleAnnotated = buildAnnotatedString {
+                        if (LocalLanguage.current == "hi") {
+                            withStyle(style = SpanStyle(color = SoftWhite)) {
+                                append("परिष्कृत सौंदर्य\n")
+                            }
+                            withStyle(style = SpanStyle(color = GoldPrimary, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) {
+                                append("की कला")
+                            }
+                        } else {
+                            withStyle(style = SpanStyle(color = SoftWhite)) {
+                                append("The Art of\n")
+                            }
+                            withStyle(style = SpanStyle(color = GoldPrimary, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) {
+                                append("Refined Beauty")
+                            }
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     Text(
-                        text = "The Art of Refined Beauty",
-                        color = SoftWhite,
-                        fontSize = 28.sp,
+                        text = titleAnnotated,
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
-                        lineHeight = 32.sp
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                        lineHeight = 44.sp,
+                        color = SoftWhite
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
+                    // Description
                     Text(
-                        text = "Experience a meticulous, high-end sanctuary tailored exclusively to your signature appearance.",
-                        color = SoftWhite.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.widthIn(max = 280.dp)
+                        text = t(
+                            "Experience a meticulous, high-end sanctuary tailored exclusively to your signature appearance.",
+                            "अपनी शैली के लिए विशेष रूप से तैयार किए गए एक उच्च-स्तरीय सौंदर्य स्थल का अनुभव करें।"
+                        ),
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        modifier = Modifier.fillMaxWidth(0.95f)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
+                    // CTA Button
                     Button(
                         onClick = onNavigateToBooking,
                         modifier = Modifier
                             .testTag("book_now_hero_btn")
-                            .height(44.dp),
+                            .height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
-                        shape = RoundedCornerShape(22.dp)
+                        shape = RoundedCornerShape(25.dp),
+                        contentPadding = PaddingValues(horizontal = 36.dp, vertical = 12.dp)
                     ) {
                         Text(
-                            text = "BOOK NOW",
+                            text = t("BOOK NOW", "अभी बुक करें"),
                             color = SoftWhite,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp
+                            letterSpacing = 2.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // Profile Column
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Owner Image Wrapper
+                        Box(
+                            modifier = Modifier
+                                .width(280.dp)
+                                .height(373.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.hero_mayank),
+                                contentDescription = "Mayank - Owner",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(
+                                        RoundedCornerShape(
+                                            topStartPercent = 50,
+                                            topEndPercent = 50,
+                                            bottomStartPercent = 0,
+                                            bottomEndPercent = 0
+                                        )
+                                    ),
+                                contentScale = ContentScale.Crop,
+                                colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+                                    androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0.8f) }
+                                )
+                            )
+
+                            // Signature Overlay
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = 32.dp, end = 16.dp)
+                                    .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    Text(
+                                        text = "Mayank",
+                                        color = GoldPrimary,
+                                        fontSize = 32.sp,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "OWNER",
+                                        color = SoftWhite,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 3.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Mission Box
+                        Box(
+                            modifier = Modifier
+                                .width(320.dp)
+                                .border(1.dp, GoldPrimary, RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 24.dp, vertical = 20.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "“",
+                                    color = GoldPrimary.copy(alpha = 0.5f),
+                                    fontSize = 36.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .offset(x = (-8).dp, y = (-12).dp)
+                                )
+
+                                Text(
+                                    text = t(
+                                        "Our mission is simple — to bring out the best version of you, with precision, passion and pride.",
+                                        "हमारा उद्देश्य सरल है — आपके व्यक्तित्व का सबसे बेहतरीन रूप सामने लाना, सटीकता, लगन और गर्व के साथ।"
+                                    ),
+                                    color = Color(0xFFE2E8F0),
+                                    fontSize = 13.sp,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                )
+
+                                Text(
+                                    text = "”",
+                                    color = GoldPrimary.copy(alpha = 0.5f),
+                                    fontSize = 36.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .offset(x = 8.dp, y = 12.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // Bottom Navigation Hint
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(1.dp)
+                                .background(GoldPrimary.copy(alpha = 0.3f))
+                        )
+                        Text(
+                            text = t("Manage Salon Services", "सैलून सेवाएँ प्रबंधित करें"),
+                            color = GoldPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 2.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(1.dp)
+                                .background(GoldPrimary.copy(alpha = 0.3f))
                         )
                     }
                 }
@@ -401,14 +673,14 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                 ) {
                     Column {
                         Text(
-                            text = "Manage Salon Services",
+                            text = t("Manage Salon Services", "सैलून सेवाएँ"),
                             color = SoftObsidian,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "Meticulously crafted treatments loaded from database",
+                            text = t("Meticulously crafted treatments loaded from database", "डेटाबेस से लोड की गई विशेष सेवाएँ"),
                             color = CharcoalGray.copy(alpha = 0.7f),
                             fontSize = 11.sp
                         )
@@ -432,7 +704,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                 border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
                             ) {
                                 Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    Text("No services loaded from database.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
+                                    Text(t("No services loaded from database.", "डेटाबेस से कोई सेवा लोड नहीं की गई।"), color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
                                 }
                             }
                         }
@@ -486,7 +758,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
 
                                     Column {
                                         Text(
-                                            text = service.name,
+                                            text = if (LocalLanguage.current == "hi" && service.nameHindi.isNotBlank()) service.nameHindi else service.name,
                                             color = SoftObsidian,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
@@ -495,7 +767,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = service.description.ifBlank { "Premium treatment" },
+                                            text = service.description.ifBlank { t("Premium treatment", "प्रीमियम उपचार") },
                                             color = CharcoalGray.copy(alpha = 0.8f),
                                             fontSize = 11.sp,
                                             lineHeight = 14.sp,
@@ -527,7 +799,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
                                             shape = RoundedCornerShape(13.dp)
                                         ) {
-                                            Text("BOOK", color = SoftWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text(t("BOOK", "बुक करें"), color = SoftWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -550,14 +822,14 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                 ) {
                     Column {
                         Text(
-                            text = "Premium Hair Sculptures",
+                            text = t("Premium Hair Sculptures", "प्रीमियम हेयर स्टाइल"),
                             color = SoftObsidian,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "सिग्नेचर हेयरकट डिज़ाइन - Select & book details",
+                            text = t("Signature Haircut Designs - Select & book details", "सिग्नेचर हेयरकट डिज़ाइन - विवरण चुनें और बुक करें"),
                             color = CharcoalGray.copy(alpha = 0.7f),
                             fontSize = 11.sp
                         )
@@ -581,7 +853,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                 border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.15f))
                             ) {
                                 Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    Text("No premium hair sculptures configured.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
+                                    Text(t("No premium hair sculptures configured.", "कोई प्रीमियम हेयर स्टाइल कॉन्फ़िगर नहीं है।"), color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp, textAlign = TextAlign.Center)
                                 }
                             }
                         }
@@ -620,12 +892,12 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         Text(
-                                            text = service.name,
+                                            text = if (LocalLanguage.current == "hi" && service.nameHindi.isNotBlank()) service.nameHindi else service.name,
                                             color = SoftObsidian,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        if (service.nameHindi.isNotBlank()) {
+                                        if (service.nameHindi.isNotBlank() && LocalLanguage.current != "hi") {
                                             Text(
                                                 text = service.nameHindi,
                                                 color = GoldPrimary,
@@ -675,7 +947,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                             shape = RoundedCornerShape(14.dp)
                                         ) {
                                             Text(
-                                                text = "BOOK",
+                                                text = t("BOOK", "बुक करें"),
                                                 color = SoftWhite,
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.ExtraBold
@@ -694,14 +966,14 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
         item {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "Stylist Operational Roster",
+                    text = t("Stylist Operational Roster", "स्टाइलिस्ट टीम"),
                     color = SoftObsidian,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "Masters of premium elegance loaded from database",
+                    text = t("Masters of premium elegance loaded from database", "डेटाबेस से लोड किए गए योग्य स्टाइलिस्ट"),
                     color = CharcoalGray.copy(alpha = 0.7f),
                     fontSize = 11.sp
                 )
@@ -717,7 +989,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No stylists loaded from database.", color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp)
+                        Text(t("No stylists loaded from database.", "डेटाबेस से कोई स्टाइलिस्ट लोड नहीं है।"), color = CharcoalGray.copy(alpha = 0.5f), fontSize = 11.sp)
                     }
                 } else {
                     dynamicStylists.forEachIndexed { index, stylist ->
@@ -731,24 +1003,36 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Decorative Avatar representing premium stylist profile picture
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        brush = Brush.radialGradient(
-                                            colors = getGradientForIndex(stylist.avatarColorIndex)
-                                        ),
-                                        shape = CircleShape
-                                    )
-                                    .border(1.5.dp, GoldPrimary, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stylist.name.split(" ").map { it.take(1) }.joinToString(""),
-                                    color = SoftWhite,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                            if (stylist.name.contains("Mayank", ignoreCase = true)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.user_avatar),
+                                    contentDescription = stylist.name,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .border(1.5.dp, GoldPrimary, CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            brush = Brush.radialGradient(
+                                                colors = getGradientForIndex(stylist.avatarColorIndex)
+                                            ),
+                                            shape = CircleShape
+                                        )
+                                        .border(1.5.dp, GoldPrimary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stylist.name.split(" ").map { it.take(1) }.joinToString(""),
+                                        color = SoftWhite,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -769,7 +1053,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                                 .border(0.5.dp, Color(0xFFEF5350), RoundedCornerShape(4.dp))
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         ) {
-                                            Text("AWAY", color = Color(0xFFC62828), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                                            Text(t("AWAY", "अनुपस्थित"), color = Color(0xFFC62828), fontSize = 7.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -782,7 +1066,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Premium artisan specializing in ${stylist.specialty}.",
+                                    text = t("Premium artisan specializing in ${stylist.specialty}.", "विशेषज्ञ स्टाइलिस्ट - ${stylist.specialty} में कुशल।"),
                                     color = CharcoalGray.copy(alpha = 0.8f),
                                     fontSize = 11.sp
                                 )
@@ -822,7 +1106,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "LUXE SALON",
+                        text = "MAYANK GENTS PARLOUR",
                         color = GoldPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -837,7 +1121,7 @@ fun LandingScreen(viewModel: SalonViewModel, onNavigateToBooking: () -> Unit, on
                     }
                     HorizontalDivider(color = SoftWhite.copy(0.1f), thickness = 0.5.dp)
                     Text(
-                        text = "© 2024 Luxe Salon Management. All Rights Reserved.",
+                        text = "© 2024 Mayank Gents Parlour Management. All Rights Reserved.",
                         color = SoftWhite.copy(0.4f),
                         fontSize = 9.sp,
                         textAlign = TextAlign.Center
@@ -867,6 +1151,16 @@ fun BookingWizardScreen(viewModel: SalonViewModel) {
     val emailVal by viewModel.emailInput.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val currentLang = LocalLanguage.current
+
+    // Observe booking conflict errors
+    val bookingError by viewModel.bookingError.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(bookingError) {
+        bookingError?.let { errorMsg ->
+            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+            viewModel.clearBookingError()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -893,7 +1187,7 @@ fun BookingWizardScreen(viewModel: SalonViewModel) {
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "$step of 5",
+                    text = t("$step of 5", "$step / 5"),
                     color = SoftObsidian.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -927,6 +1221,7 @@ fun BookingWizardScreen(viewModel: SalonViewModel) {
                 3 -> {
                     val matchingStylist = stylists.find { it.name == stylistSelection }
                     StepTimeSlotSelection(
+                        viewModel = viewModel,
                         selectedDate = dateSelection,
                         selectedTime = timeSelection,
                         selectedStylist = matchingStylist,
@@ -958,20 +1253,20 @@ fun BookingWizardScreen(viewModel: SalonViewModel) {
                         .width(100.dp)
                         .height(44.dp)
                 ) {
-                    Text(text = "BACK", fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp)
+                    Text(text = t("BACK", "पीछे"), fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp)
                 }
 
                 Button(
                     onClick = {
                         if (step == 1 && selectedServices.isEmpty()) {
-                            Toast.makeText(context, "Please select at least one service", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (currentLang == "hi") "कृपया कम से कम एक सेवा चुनें" else "Please select at least one service", Toast.LENGTH_SHORT).show()
                         } else if (step == 2 && stylistSelection == null) {
-                            Toast.makeText(context, "Please select preferred stylist", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (currentLang == "hi") "कृपया पसंदीदा स्टाइलिस्ट चुनें" else "Please select preferred stylist", Toast.LENGTH_SHORT).show()
                         } else if (step == 3 && (dateSelection == null || timeSelection == null)) {
-                            Toast.makeText(context, "Please select slot date and time", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (currentLang == "hi") "कृपया स्लॉट दिनांक और समय चुनें" else "Please select slot date and time", Toast.LENGTH_SHORT).show()
                         } else if (step == 4) {
                             if (nameVal.isBlank() || phoneVal.isBlank()) {
-                                Toast.makeText(context, "Name and Phone values are required", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, if (currentLang == "hi") "नाम और फ़ोन नंबर आवश्यक हैं" else "Name and Phone values are required", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.submitBooking()
                             }
@@ -986,7 +1281,7 @@ fun BookingWizardScreen(viewModel: SalonViewModel) {
                         .width(155.dp)
                         .height(44.dp)
                 ) {
-                    val label = if (step == 4) "BOOK NOW" else "CONTINUE"
+                    val label = if (step == 4) t("BOOK NOW", "अभी बुक करें") else t("CONTINUE", "जारी रखें")
                     Text(text = label, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp)
                 }
             }
@@ -1008,14 +1303,14 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Track Appointments",
+            text = t("Track Appointments", "नियुक्तियाँ ट्रैक करें"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.5.sp
         )
         Text(
-            text = "Check appointment statuses or cancel bookings.",
+            text = t("Check appointment statuses or cancel bookings.", "नियुक्ति की स्थिति जाँचें या बुकिंग रद्द करें।"),
             color = CharcoalGray.copy(alpha = 0.7f),
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -1031,8 +1326,8 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                 OutlinedTextField(
                     value = searchPhone,
                     onValueChange = { viewModel.lookupSearchText.value = it },
-                    label = { Text("Secure Registered Phone Number") },
-                    placeholder = { Text("e.g. +1234567890") },
+                    label = { Text(t("Secure Registered Phone Number", "पंजीकृत फ़ोन नंबर")) },
+                    placeholder = { Text(t("e.g. +1234567890", "जैसे +911234567890")) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1048,7 +1343,10 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Enter your registered number to view your real-time booking receipts. Admin users can build custom services and manage appointments from the admin login tab.",
+                    text = t(
+                        "Enter your registered number to view your real-time booking receipts. Admin users can build custom services and manage appointments from the admin login tab.",
+                        "अपनी रसीद देखने के लिए पंजीकृत फ़ोन नंबर दर्ज करें। एडमिन कस्टमाइज्ड सर्विस बनाने के लिए एडमिन टैब से लॉग इन करें।"
+                    ),
                     color = CharcoalGray.copy(alpha = 0.7f),
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
@@ -1075,12 +1373,12 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "No records queried yet",
+                        text = t("No records queried yet", "अभी तक कोई बुकिंग नहीं खोजी गई"),
                         color = CharcoalGray.copy(alpha = 0.6f),
                         fontSize = 13.sp
                     )
                     Text(
-                        text = "Type in your lookup phone or click 'Load Demo'",
+                        text = t("Type in your lookup phone", "खोजने के लिए पंजीकृत फ़ोन नंबर टाइप करें।"),
                         color = CharcoalGray.copy(alpha = 0.4f),
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
@@ -1115,7 +1413,7 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text(
-                                            text = booking.status.uppercase(),
+                                            text = if (booking.status == "Active") t("ACTIVE", "सक्रिय") else t("CANCELLED", "रद्द"),
                                             color = statusColor,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 9.sp,
@@ -1148,7 +1446,7 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = " Partner: ${booking.stylistName}",
+                                    text = t(" Partner: ${booking.stylistName}", " स्टाइलिस्ट: ${booking.stylistName}"),
                                     color = CharcoalGray.copy(alpha = 0.8f),
                                     fontSize = 12.sp
                                 )
@@ -1162,7 +1460,7 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = " Schedule: ${booking.date} @ ${booking.timeSlot}",
+                                    text = t(" Schedule: ${booking.date} @ ${booking.timeSlot}", " समय: ${booking.date} @ ${booking.timeSlot}"),
                                     color = CharcoalGray.copy(alpha = 0.8f),
                                     fontSize = 12.sp
                                 )
@@ -1181,7 +1479,7 @@ fun BookingLookupScreen(viewModel: SalonViewModel) {
                                         .testTag("cancel_booking_action_btn")
                                 ) {
                                     Text(
-                                        text = "CANCEL RESERVATION",
+                                        text = t("CANCEL RESERVATION", "बुकिंग रद्द करें"),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp,
                                         letterSpacing = 0.5.sp
@@ -1236,14 +1534,14 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "AUTHENTICATION SANCTUARY",
+            text = t("AUTHENTICATION SANCTUARY", "सत्यापन पोर्टल (AUTHENTICATION)"),
             color = GoldPrimary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
         )
         Text(
-            text = "Access Administration Portal",
+            text = t("Access Administration Portal", "एडमिनिस्ट्रेशन पोर्टल प्रवेश"),
             color = SoftObsidian,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -1271,7 +1569,7 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { viewModel.authEmail.value = it },
-                    label = { Text("Email Address") },
+                    label = { Text(t("Email Address", "ईमेल पता")) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1288,7 +1586,7 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { viewModel.authPassword.value = it },
-                    label = { Text("Password") },
+                    label = { Text(t("Password", "पासवर्ड")) },
                     singleLine = true,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier
@@ -1325,7 +1623,7 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "LOGIN",
+                        text = t("LOGIN", "लॉग इन करें"),
                         color = SoftWhite,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
@@ -1377,18 +1675,33 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Upper Greeting Header Block
-        Column {
-            Text(
-                text = customGreeting.ifBlank { "Welcome back, Executive" },
-                color = SoftObsidian,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
-            )
-            Text(
-                text = "Luxe Salon Administrative Intelligence Console",
-                color = CharcoalGray.copy(alpha = 0.7f),
-                fontSize = 11.sp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = customGreeting.ifBlank { "Welcome back, Executive" },
+                    color = SoftObsidian,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "Mayank Gents Parlour Administrative Console",
+                    color = CharcoalGray.copy(alpha = 0.7f),
+                    fontSize = 11.sp
+                )
+            }
+            Image(
+                painter = painterResource(id = R.drawable.user_avatar),
+                contentDescription = "Admin Profile Avatar",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, GoldPrimary, CircleShape),
+                contentScale = ContentScale.Crop
             )
         }
 
@@ -1697,7 +2010,14 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                     ),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                if (!stylist.imageUrl.isNullOrBlank()) {
+                                                if (stylist.name.contains("Mayank", ignoreCase = true)) {
+                                                    Image(
+                                                        painter = painterResource(id = R.drawable.user_avatar),
+                                                        contentDescription = stylist.name,
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                } else if (!stylist.imageUrl.isNullOrBlank()) {
                                                     AsyncImage(
                                                         model = stylist.imageUrl,
                                                         contentDescription = stylist.name,
@@ -3344,14 +3664,14 @@ fun StepPersonalInfoForm(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Client Details",
+            text = t("Client Details", "ग्राहक विवरण"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.5.sp
         )
         Text(
-            text = "Please enter your contact parameters so we can reserve your custom experience.",
+            text = t("Please enter your contact parameters so we can reserve your custom experience.", "कृपया अपना संपर्क विवरण दर्ज करें ताकि हम आपकी बुकिंग सुरक्षित कर सकें।"),
             color = CharcoalGray.copy(alpha = 0.7f),
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -3370,7 +3690,7 @@ fun StepPersonalInfoForm(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { viewModel.nameInput.value = it },
-                    label = { Text("Display / Full Name") },
+                    label = { Text(t("Display / Full Name", "पूरा नाम")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("wizard_name_input"),
                     colors = TextFieldDefaults.colors(
@@ -3384,7 +3704,7 @@ fun StepPersonalInfoForm(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { viewModel.phoneInput.value = it },
-                    label = { Text("Contact Phone Number") },
+                    label = { Text(t("Contact Phone Number", "संपर्क फ़ोन नंबर")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth().testTag("wizard_phone_input"),
@@ -3399,7 +3719,7 @@ fun StepPersonalInfoForm(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { viewModel.emailInput.value = it },
-                    label = { Text("Email Address (Optional)") },
+                    label = { Text(t("Email Address (Optional)", "ईमेल पता (वैकल्पिक)")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth().testTag("wizard_email_input"),
@@ -3441,7 +3761,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
         }
 
         Text(
-            text = "RESERVATION CONFIRMED",
+            text = t("RESERVATION CONFIRMED", "बुकिंग सफल (CONFIRMED)"),
             color = GoldPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
@@ -3449,7 +3769,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
         )
 
         Text(
-            text = "Your Aura Ritual is Secured",
+            text = t("Your Aura Ritual is Secured", "आपकी सेवा सुरक्षित कर दी गई है"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -3469,7 +3789,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "LUXE SALON RITUAL TICKET",
+                        text = t("MAYANK GENTS PARLOUR TICKET", "मयंक जेंट्स पार्लर टिकट"),
                         color = GoldPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -3484,7 +3804,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "CLIENT", fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
+                        Text(text = t("CLIENT", "ग्राहक"), fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
                         Text(text = booking.clientName.uppercase(), fontSize = 12.sp, color = SoftObsidian, fontWeight = FontWeight.Bold)
                     }
 
@@ -3492,7 +3812,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "PHONE REGISTERED", fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
+                        Text(text = t("PHONE REGISTERED", "पंजीकृत फ़ोन"), fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
                         Text(text = booking.phoneNumber, fontSize = 11.sp, color = SoftObsidian)
                     }
 
@@ -3500,7 +3820,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "ARTISAN / STYLIST", fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
+                        Text(text = t("ARTISAN / STYLIST", "स्टाइलिस्ट"), fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
                         Text(text = booking.stylistName, fontSize = 12.sp, color = SoftObsidian, fontWeight = FontWeight.Bold)
                     }
 
@@ -3508,14 +3828,14 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "SCHEDULE HOUR", fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
+                        Text(text = t("SCHEDULE HOUR", "निर्धारित समय"), fontSize = 11.sp, color = CharcoalGray.copy(0.6f))
                         Text(text = "${booking.date} @ ${booking.timeSlot}", fontSize = 12.sp, color = SoftObsidian, fontWeight = FontWeight.Bold)
                     }
 
                     HorizontalDivider(color = GoldPrimary.copy(alpha = 0.1f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                     Text(
-                        text = "CURATED SERVICES",
+                        text = t("CURATED SERVICES", "चुनी हुई सेवाएँ"),
                         fontSize = 10.sp,
                         color = GoldPrimary,
                         fontWeight = FontWeight.Bold,
@@ -3537,7 +3857,7 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "ESTIMATED TOTAL DUE", fontSize = 11.sp, color = SoftObsidian, fontWeight = FontWeight.Bold)
+                        Text(text = t("ESTIMATED TOTAL DUE", "अनुमानित कुल देय"), fontSize = 11.sp, color = SoftObsidian, fontWeight = FontWeight.Bold)
                         Text(
                             text = "₹${String.format("%.2f", booking.priceEstimate)}",
                             fontSize = 18.sp,
@@ -3555,7 +3875,10 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = "To tracking / cancel: search phone ${booking.phoneNumber} in Lookup Tab.",
+                            text = t(
+                                "To tracking / cancel: search phone ${booking.phoneNumber} in Lookup Tab.",
+                                "ट्रैक / रद्द करने के लिए: लुकअप टैब में फ़ोन नंबर ${booking.phoneNumber} खोजें।"
+                            ),
                             fontSize = 9.sp,
                             color = GoldPrimary,
                             fontWeight = FontWeight.Bold,
@@ -3570,11 +3893,87 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                 modifier = Modifier.fillMaxWidth().height(150.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "Formulating receipt...", color = CharcoalGray.copy(alpha = 0.6f))
+                Text(text = t("Formulating receipt...", "रसीद तैयार की जा रही है..."), color = CharcoalGray.copy(alpha = 0.6f))
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
+
+        // WhatsApp Image Receipt Button — generates receipt image & sends directly to salon number
+        finalBooking?.let { booking ->
+            val context = LocalContext.current
+
+            Button(
+                onClick = {
+                    try {
+                        // 1. Generate beautiful receipt bitmap programmatically
+                        val bitmap = createReceiptBitmap(booking)
+
+                        // 2. Save to app cache dir
+                        val receiptDir = File(context.cacheDir, "receipts")
+                        receiptDir.mkdirs()
+                        val receiptFile = File(receiptDir, "booking_receipt_${System.currentTimeMillis()}.jpg")
+                        FileOutputStream(receiptFile).use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                        }
+
+                        // 3. Create content URI via FileProvider
+                        val imageUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.provider",
+                            receiptFile
+                        )
+
+                        // 4. Send image directly to salon owner WhatsApp number
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "image/jpeg"
+                            putExtra(Intent.EXTRA_STREAM, imageUri)
+                            // Direct to specific WhatsApp number
+                            putExtra("jid", "918708921435@s.whatsapp.net")
+                            setPackage("com.whatsapp")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "WhatsApp खुलने में समस्या। App install करें।", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("whatsapp_send_img_btn")
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Send Receipt Image",
+                        tint = SoftWhite,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Column {
+                        Text(
+                            text = t("SEND RECEIPT ON WHATSAPP", "व्हाट्सएप पर रसीद भेजें"),
+                            color = SoftWhite,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = t("📸 Booking image → +91 8708921435", "📸 बुकिंग रसीद चित्र → +91 8708921435"),
+                            color = SoftWhite.copy(alpha = 0.85f),
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         Button(
             onClick = {
@@ -3588,18 +3987,19 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
                 .height(44.dp)
                 .testTag("wizard_done_back_to_home_btn")
         ) {
-            Text(text = "RETURN TO HOME GALLERY", color = SoftWhite, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text(text = t("RETURN TO HOME GALLERY", "होम गैलरी पर वापस जाएं"), color = SoftWhite, fontWeight = FontWeight.Bold, fontSize = 11.sp)
         }
     }
 }
 
+@Composable
 fun getStepLabelText(step: Int): String {
     return when (step) {
-        1 -> "STEP 1: CURATE SERVICES"
-        2 -> "STEP 2: CHOOSE THE STYLIST"
-        3 -> "STEP 3: CHOOSE THE MOMENT"
-        4 -> "STEP 4: CLIENT ACCOUNT INFO"
-        else -> "STEP 5: RESERVED RECEIPT"
+        1 -> t("STEP 1: CURATE SERVICES", "चरण 1: सेवाएँ चुनें")
+        2 -> t("STEP 2: CHOOSE THE STYLIST", "चरण 2: स्टाइलिस्ट चुनें")
+        3 -> t("STEP 3: CHOOSE THE MOMENT", "चरण 3: समय और तिथि")
+        4 -> t("STEP 4: CLIENT ACCOUNT INFO", "चरण 4: ग्राहक विवरण")
+        else -> t("STEP 5: RESERVED RECEIPT", "चरण 5: बुकिंग रसीद")
     }
 }
 
@@ -3639,14 +4039,14 @@ fun StepServicesSelection(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "Select Premium Services",
+            text = t("Select Premium Services", "सेवाएँ चुनें"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.5.sp
         )
         Text(
-            text = "Fine art visual transformation packages tailored. Select one or more.",
+            text = t("Fine art visual transformation packages tailored. Select one or more.", "सुंदर और कलात्मक रूप परिवर्तन पैकेज। एक या अधिक चुनें।"),
             color = CharcoalGray.copy(alpha = 0.7f),
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -3680,7 +4080,7 @@ fun StepServicesSelection(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = serviceInfo.name,
+                            text = if (LocalLanguage.current == "hi" && serviceInfo.nameHindi.isNotBlank()) serviceInfo.nameHindi else serviceInfo.name,
                             color = SoftObsidian,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -3689,7 +4089,7 @@ fun StepServicesSelection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "₹${String.format("%.0f", serviceInfo.price)}  •  ${serviceInfo.durationMin} mins",
+                                text = "₹${String.format("%.0f", serviceInfo.price)}  •  ${serviceInfo.durationMin} ${t("mins", "मिनट")}",
                                 color = GoldPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp
@@ -3723,14 +4123,14 @@ fun StepStylistsSelection(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "Our Artistic Elite",
+            text = t("Our Artistic Elite", "स्टाइलिस्ट चुनें"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.5.sp
         )
         Text(
-            text = "Partner with curated artisans representing hair, luxury, and styling perfection.",
+            text = t("Partner with curated artisans representing hair, luxury, and styling perfection.", "शानदार हेयर स्टाइलिंग और सौंदर्य विशेषज्ञता के लिए हमारे प्रोफेशनल आर्टिस्ट चुनें।"),
             color = CharcoalGray.copy(alpha = 0.7f),
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -3767,7 +4167,14 @@ fun StepStylistsSelection(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!stylist.imageUrl.isNullOrBlank()) {
+                        if (stylist.name.contains("Mayank", ignoreCase = true)) {
+                            Image(
+                                painter = painterResource(id = R.drawable.user_avatar),
+                                contentDescription = stylist.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (!stylist.imageUrl.isNullOrBlank()) {
                             AsyncImage(
                                 model = stylist.imageUrl,
                                 contentDescription = stylist.name,
@@ -3821,11 +4228,11 @@ fun StepStylistsSelection(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (stylist.isAvailable) {
-                                    "Available Today"
+                                    t("Available Today", "आज उपलब्ध")
                                 } else if (stylist.awayUntilDate != null && stylist.awayUntilTime != null) {
-                                    "Away (Return: ${stylist.awayUntilDate} @ ${stylist.awayUntilTime})"
+                                    t("Away (Return: ${stylist.awayUntilDate} @ ${stylist.awayUntilTime})", "अनुपस्थित (वापसी: ${stylist.awayUntilDate} @ ${stylist.awayUntilTime})")
                                 } else {
-                                    "Away (Book for Alternate Dates)"
+                                    t("Away (Book for Alternate Dates)", "अनुपस्थित (अन्य तारीख के लिए बुक करें)")
                                 },
                                 color = CharcoalGray.copy(alpha = 0.7f),
                                 fontSize = 10.sp
@@ -3845,12 +4252,14 @@ fun StepStylistsSelection(
 
 @Composable
 fun StepTimeSlotSelection(
+    viewModel: com.example.ui.SalonViewModel,
     selectedDate: String?,
     selectedTime: String?,
     selectedStylist: Stylist? = null,
     onChooseDate: (String) -> Unit,
     onChooseTime: (String) -> Unit
 ) {
+    val currentLang = LocalLanguage.current
     val dates = remember {
         val list = mutableListOf<String>()
         val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
@@ -3865,6 +4274,26 @@ fun StepTimeSlotSelection(
     }
     val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
 
+    // --- Smart slot conflict detection ---
+    // Total duration of services selected by current user
+    val currentSelectedServices by viewModel.selectedServices.collectAsStateWithLifecycle()
+    val newServiceDuration = remember(currentSelectedServices) {
+        viewModel.calculateTotalServiceDuration()
+    }
+
+    // Live-computed blocked slots based on existing bookings for this stylist + date
+    val currentBookings by viewModel.allBookings.collectAsStateWithLifecycle()
+    val bookedBlockedSlots = remember(selectedStylist?.name, selectedDate, currentBookings) {
+        if (selectedStylist != null && selectedDate != null) {
+            viewModel.getBlockedSlotsForStylistDate(
+                stylistName = selectedStylist.name,
+                date = selectedDate,
+                allSlots = timesCode,
+                newServiceDurationMin = newServiceDuration
+            )
+        } else emptySet()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -3872,7 +4301,7 @@ fun StepTimeSlotSelection(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Schedule Appointment",
+            text = t("Schedule Appointment", "समय निर्धारित करें"),
             color = SoftObsidian,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -3889,13 +4318,16 @@ fun StepTimeSlotSelection(
             ) {
                 Column {
                     Text(
-                        text = "Roster Leave Notice:",
+                        text = t("Roster Leave Notice:", "स्टाइलिस्ट अवकाश सूचना:"),
                         color = Color(0xFFF57F17),
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
                     )
                     Text(
-                        text = "${selectedStylist.name} is currently away until ${selectedStylist.awayUntilDate} at ${selectedStylist.awayUntilTime}. Relaunch dates and slots are tailored below.",
+                        text = t(
+                            "${selectedStylist.name} is currently away until ${selectedStylist.awayUntilDate} at ${selectedStylist.awayUntilTime}. Relaunch dates and slots are tailored below.",
+                            "${selectedStylist.name} वर्तमान में ${selectedStylist.awayUntilDate} को ${selectedStylist.awayUntilTime} तक अनुपस्थित हैं। उपलब्धता नीचे दर्शाई गई है।"
+                        ),
                         color = Color(0xFF5D4037),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
@@ -3904,14 +4336,14 @@ fun StepTimeSlotSelection(
             }
         } else {
             Text(
-                text = "Select date and preferred slot for deluxe treatment.",
+                text = t("Select date and preferred slot for deluxe treatment.", "उपचार के लिए दिनांक और पसंदीदा समय चुनें।"),
                 color = CharcoalGray.copy(alpha = 0.7f),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
 
-        Text(text = "AVAILABLE DATES", color = GoldPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Text(text = t("AVAILABLE DATES", "उपलब्ध दिनांक"), color = GoldPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
 
         val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -3946,7 +4378,10 @@ fun StepTimeSlotSelection(
                             if (isDateBlocked) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "${selectedStylist?.name} is on leave until ${selectedStylist?.awayUntilDate}",
+                                    if (currentLang == "hi")
+                                        "${selectedStylist?.name} ${selectedStylist?.awayUntilDate} तक अवकाश पर हैं"
+                                    else
+                                        "${selectedStylist?.name} is on leave until ${selectedStylist?.awayUntilDate}",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             } else {
@@ -3973,27 +4408,90 @@ fun StepTimeSlotSelection(
         }
 
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "AVAILABLE HOURS", color = GoldPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+
+        // Duration info banner
+        if (newServiceDuration > 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GoldPrimary.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
+                    .border(1.dp, GoldPrimary.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = GoldPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = t("Your services: ~${newServiceDuration} mins • Stylist will not be available during this time", "आपकी services: ~${newServiceDuration} मिनट • इस दौरान stylist उपलब्ध न होगा"),
+                        color = CharcoalGray,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        Text(text = t("AVAILABLE HOURS", "उपलब्ध समय"), color = GoldPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+
+        // Show count of available slots
+        val availableCount = timesCode.count { slot ->
+            !bookedBlockedSlots.contains(slot)
+        }
+        if (bookedBlockedSlots.isNotEmpty()) {
+            Text(
+                text = t(
+                    "${availableCount} slots available • ${bookedBlockedSlots.size} already booked",
+                    "${availableCount} स्लॉट उपलब्ध • ${bookedBlockedSlots.size} पहले से बुक"
+                ),
+                color = CharcoalGray.copy(alpha = 0.6f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
 
         timesCode.forEach { slot ->
             val isTimeSel = selectedTime == slot
-            
-            // Check if slot is blocked
-            var isSlotBlocked = false
+
+            // Leave-based blocking (stylist away)
+            var isLeaveBlocked = false
             if (selectedStylist != null && !selectedStylist.isAvailable && selectedStylist.awayUntilDate != null && selectedStylist.awayUntilTime != null && selectedDate != null) {
                 val returnDateIndex = dates.indexOf(selectedStylist.awayUntilDate)
                 val curDateIndex = dates.indexOf(selectedDate)
                 if (curDateIndex != -1 && returnDateIndex != -1) {
                     if (curDateIndex < returnDateIndex) {
-                        isSlotBlocked = true
+                        isLeaveBlocked = true
                     } else if (curDateIndex == returnDateIndex) {
                         val returnTimeIndex = timesCode.indexOf(selectedStylist.awayUntilTime)
                         val slotIndex = timesCode.indexOf(slot)
                         if (returnTimeIndex != -1 && slotIndex != -1 && slotIndex < returnTimeIndex) {
-                            isSlotBlocked = true
+                            isLeaveBlocked = true
                         }
                     }
                 }
+            }
+
+            // Booking conflict blocking (another user already booked this slot)
+            val isBookingConflict = bookedBlockedSlots.contains(slot)
+
+            // Combined block
+            val isSlotBlocked = isLeaveBlocked || isBookingConflict
+            val blockReason = when {
+                isBookingConflict -> t("Already Booked", "पहले से बुक")
+                isLeaveBlocked -> t("Stylist on Leave", "स्टाइलिस्ट अवकाश पर")
+                else -> ""
+            }
+            val blockColor = when {
+                isBookingConflict -> Color(0xFFD32F2F)
+                isLeaveBlocked -> Color(0xFFD32F2F)
+                else -> Color.Transparent
             }
 
             Card(
@@ -4003,7 +4501,11 @@ fun StepTimeSlotSelection(
                         if (isSlotBlocked) {
                             android.widget.Toast.makeText(
                                 context,
-                                "Artisan is unavailable on leave during this slot",
+                                if (isBookingConflict) {
+                                    if (currentLang == "hi") "यह स्लॉट पहले से बुक है। कोई अन्य समय चुनें।" else "This slot is already booked. Choose another slot."
+                                } else {
+                                    if (currentLang == "hi") "स्टाइलिस्ट इस समय अवकाश पर हैं।" else "Artisan is unavailable on leave during this slot"
+                                },
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         } else {
@@ -4012,16 +4514,18 @@ fun StepTimeSlotSelection(
                     },
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(
-                    1.dp, 
+                    1.dp,
                     when {
-                        isSlotBlocked -> GoldPrimary.copy(alpha = 0.05f)
+                        isBookingConflict -> Color(0xFFD32F2F).copy(alpha = 0.3f)
+                        isLeaveBlocked -> GoldPrimary.copy(alpha = 0.05f)
                         isTimeSel -> GoldPrimary
                         else -> GoldPrimary.copy(alpha = 0.1f)
                     }
                 ),
                 colors = CardDefaults.cardColors(
                     containerColor = when {
-                        isSlotBlocked -> SoftWhite.copy(alpha = 0.4f)
+                        isBookingConflict -> Color(0xFFFFF5F5)
+                        isLeaveBlocked -> SoftWhite.copy(alpha = 0.4f)
                         isTimeSel -> LightContainerGold
                         else -> SoftWhite
                     }
@@ -4039,12 +4543,15 @@ fun StepTimeSlotSelection(
                             text = slot,
                             color = if (isSlotBlocked) SoftObsidian.copy(alpha = 0.4f) else SoftObsidian,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            style = androidx.compose.ui.text.TextStyle(
+                                textDecoration = if (isSlotBlocked) TextDecoration.LineThrough else null
+                            )
                         )
                         if (isSlotBlocked) {
                             Text(
-                                text = "Stylist on Leave",
-                                color = Color(0xFFD32F2F),
+                                text = blockReason,
+                                color = blockColor,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -4076,3 +4583,274 @@ data class CuttingStyleInfo(
     val suitability: String,
     val price: String
 )
+
+// ==========================================
+// RECEIPT BITMAP GENERATOR
+// Programmatically draws a beautiful booking receipt image for WhatsApp sharing
+// ==========================================
+fun createReceiptBitmap(booking: com.example.data.Booking): Bitmap {
+    val width = 900
+    val padding = 56f
+    val lineSpacing = 54f
+
+    // Colors
+    val bgColor = android.graphics.Color.parseColor("#FAFAF9")
+    val goldColor = android.graphics.Color.parseColor("#C5A059")
+    val goldLight = android.graphics.Color.parseColor("#F9F5EC")
+    val darkColor = android.graphics.Color.parseColor("#1A1A1A")
+    val grayColor = android.graphics.Color.parseColor("#6B7280")
+    val whiteColor = android.graphics.Color.WHITE
+    val greenColor = android.graphics.Color.parseColor("#059669")
+
+    // Estimate height
+    val servicesLines = (booking.services.length / 42) + 1
+    val estimatedHeight = (padding * 2 + lineSpacing * 12 + servicesLines * 32 + 200).toInt()
+
+    val bitmap = Bitmap.createBitmap(width, estimatedHeight, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    // ---- BACKGROUND ----
+    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bgColor }
+    canvas.drawRect(0f, 0f, width.toFloat(), estimatedHeight.toFloat(), bgPaint)
+
+    // ---- GOLD TOP STRIP ----
+    val topStripPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = goldColor }
+    canvas.drawRect(0f, 0f, width.toFloat(), 18f, topStripPaint)
+
+    // ---- HEADER CARD (dark) ----
+    val headerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.parseColor("#1A1A1A") }
+    val headerRect = RectF(padding, 36f, width - padding, 200f)
+    canvas.drawRoundRect(headerRect, 16f, 16f, headerPaint)
+
+    // Salon name in header
+    val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = goldColor
+        textSize = 38f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        letterSpacing = 0.12f
+    }
+    canvas.drawText("MAYANK GENTS PARLOUR", padding + 24f, 100f, namePaint)
+
+    val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.parseColor("#FFFFFF")
+        textSize = 26f
+        typeface = Typeface.DEFAULT
+        alpha = 180
+    }
+    canvas.drawText("Booking Confirmation Receipt", padding + 24f, 140f, subPaint)
+
+    // Confirmed badge
+    val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = greenColor }
+    val badgeRect = RectF(width - padding - 180f, 68f, width - padding - 8f, 106f)
+    canvas.drawRoundRect(badgeRect, 20f, 20f, badgePaint)
+    val badgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = whiteColor
+        textSize = 22f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("✓ CONFIRMED", badgeRect.centerX(), badgeRect.centerY() + 8f, badgeTextPaint)
+
+    // ---- DIVIDER ----
+    var y = 230f
+    val divPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = goldColor; alpha = 40; strokeWidth = 1.5f
+    }
+
+    // ---- DETAIL ROWS ----
+    fun drawRow(label: String, value: String, yPos: Float): Float {
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = grayColor; textSize = 24f; typeface = Typeface.DEFAULT
+        }
+        val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = darkColor; textSize = 26f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText(label.uppercase(), padding, yPos, labelPaint)
+        canvas.drawText(value, width - padding, yPos, valuePaint)
+        // thin divider
+        canvas.drawLine(padding, yPos + 14f, width - padding, yPos + 14f, divPaint)
+        return yPos + lineSpacing
+    }
+
+    y = drawRow("Client", booking.clientName, y)
+    y = drawRow("Phone", booking.phoneNumber, y)
+    y = drawRow("Artisan / Stylist", booking.stylistName, y)
+    y = drawRow("Date & Time", "${booking.date} @ ${booking.timeSlot}", y)
+
+    // Services section (multi-line)
+    val labelPaint2 = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = grayColor; textSize = 24f
+    }
+    canvas.drawText("SERVICES", padding, y, labelPaint2)
+    y += 32f
+
+    val servicesPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = darkColor; textSize = 26f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    val words = booking.services.split(" ")
+    var line = ""
+    for (word in words) {
+        val testLine = if (line.isEmpty()) word else "$line $word"
+        if (servicesPaint.measureText(testLine) > width - padding * 2) {
+            canvas.drawText(line, padding, y, servicesPaint)
+            y += 34f
+            line = word
+        } else {
+            line = testLine
+        }
+    }
+    if (line.isNotEmpty()) { canvas.drawText(line, padding, y, servicesPaint); y += 34f }
+    y += 8f
+
+    // ---- TOTAL DUE BOX ----
+    val totalBoxPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = goldLight }
+    val totalRect = RectF(padding, y, width - padding, y + 80f)
+    canvas.drawRoundRect(totalRect, 12f, 12f, totalBoxPaint)
+
+    val totalLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.parseColor("#92400E")
+        textSize = 24f; typeface = Typeface.DEFAULT
+    }
+    canvas.drawText("ESTIMATED TOTAL DUE", padding + 16f, y + 46f, totalLabelPaint)
+
+    val totalAmtPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = goldColor; textSize = 38f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.RIGHT
+    }
+    canvas.drawText("₹${String.format("%.0f", booking.priceEstimate)}", width - padding - 16f, y + 52f, totalAmtPaint)
+    y += 96f
+
+    // ---- FOOTER ----
+    val footerDivPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = goldColor; alpha = 60; strokeWidth = 1f
+    }
+    canvas.drawLine(padding, y + 12f, width - padding, y + 12f, footerDivPaint)
+
+    val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = grayColor; textSize = 21f
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("Mayank Gents Parlour  •  Powered by Luxe Salon App", width / 2f, y + 44f, footerPaint)
+
+    // ---- GOLD BOTTOM STRIP ----
+    val botStripPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = goldColor }
+    canvas.drawRect(0f, estimatedHeight - 14f, width.toFloat(), estimatedHeight.toFloat(), botStripPaint)
+
+    return bitmap
+}
+
+@Composable
+fun LanguageSelectionScreen(onLanguageSelected: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SoftObsidian),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = GoldPrimary.copy(alpha = 0.15f),
+                radius = size.height * 0.4f,
+                center = Offset(size.width * 0.5f, size.height * 0.1f)
+            )
+            drawCircle(
+                color = GoldPrimary.copy(alpha = 0.08f),
+                radius = size.height * 0.3f,
+                center = Offset(size.width * 0.5f, size.height * 0.9f)
+            )
+        }
+
+        Card(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(0.9f)
+                .border(1.dp, GoldPrimary.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = SoftObsidian.copy(alpha = 0.85f)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(GoldPrimary.copy(alpha = 0.15f), CircleShape)
+                        .border(1.dp, GoldPrimary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Language",
+                        tint = GoldPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Luxe Salon",
+                    color = GoldPrimary,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Select Language / भाषा चुनें",
+                    color = SoftWhite.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = { onLanguageSelected("en") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("lang_en_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text(
+                        text = "English",
+                        color = SoftWhite,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { onLanguageSelected("hi") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .border(1.dp, GoldPrimary, RoundedCornerShape(25.dp))
+                        .testTag("lang_hi_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text(
+                        text = "हिंदी (Hindi)",
+                        color = GoldPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}

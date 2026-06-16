@@ -1,19 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SECURITY FIX (VULN-12): Backup Exclusion Rules
+  - Excludes ALL databases (Room SQLite) from cloud and device-transfer backup
+  - Excludes ALL shared preferences from backup
+  - This prevents customer PII (phone numbers, booking history, admin email)
+    from being exposed via Google Drive backup or device-to-device transfer.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Exclude entire databases directory — contains Room SQLite with customer data -->
+        <exclude domain="database" />
+        <!-- Exclude all shared preferences — may contain session tokens or config -->
+        <exclude domain="sharedpref" />
+        <!-- Exclude all files — may contain cached network responses or temp data -->
+        <exclude domain="file" />
+        <!-- Exclude external storage files if app uses them -->
+        <exclude domain="external" />
     </cloud-backup>
-    <!--
+
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Exclude sensitive data from device-to-device transfers as well -->
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
     </device-transfer>
-    -->
 </data-extraction-rules>

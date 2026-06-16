@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
@@ -153,35 +154,36 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
     private val _isShowingSignUp = MutableStateFlow(false)
     val isShowingSignUp: StateFlow<Boolean> = _isShowingSignUp.asStateFlow()
 
-    val authEmail = MutableStateFlow("admin@luxesalon.com")
-    val authPassword = MutableStateFlow("luxuryadmin123")
+    // SECURITY FIX (VULN-01): Never pre-populate credentials with hardcoded defaults.
+    // Leaving these as empty strings forces the user to always type their credentials.
+    val authEmail = MutableStateFlow("")
+    val authPassword = MutableStateFlow("")
     val authName = MutableStateFlow("")
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
 
     val activeAdminSubTab = MutableStateFlow(0) // 0: Dashboard/Analytics, 1: Stylist Roster, 2: Bookings Master, 3: Portal Settings
 
+    // Language Preference State
+    private val sharedPrefs = application.getSharedPreferences("luxe_salon_prefs", Context.MODE_PRIVATE)
+    private val _selectedLanguage = MutableStateFlow<String?>(sharedPrefs.getString("selected_language", null))
+    val selectedLanguage: StateFlow<String?> = _selectedLanguage.asStateFlow()
+
+    fun selectLanguage(lang: String) {
+        _selectedLanguage.value = lang
+        sharedPrefs.edit().putString("selected_language", lang).apply()
+    }
+
     private val _latestBookingReceipt = MutableStateFlow<Booking?>(null)
     val latestBookingReceipt: StateFlow<Booking?> = _latestBookingReceipt.asStateFlow()
 
     init {
-        // Clear all preexisting demo stylists, services, and bookings immediately on startup
-        // to comply with your request for a pristine clean database.
+        // Retain cached database contents on startup to support offline availability.
+        // Syncing with the Render cloud database will refresh the local database cleanly if successful.
         viewModelScope.launch {
-            repository.clearAllData()
-
-            repository.adminProfile.first().let { profile ->
-                if (profile == null) {
-                    repository.saveAdminProfile(
-                        AdminProfile(
-                            id = 1,
-                            email = "raj.sharma@luxesalon.com",
-                            displayName = "Raj Sharma",
-                            customGreeting = "Welcome back, Executive Raj"
-                        )
-                    )
-                }
-            }
+            // SECURITY FIX (VULN-01 / VULN-05): Do NOT auto-seed admin credentials into the local
+            // database on startup. Admin profile should only be populated after a successful
+            // server-side authentication. This prevents credential harvesting from the local DB.
             // Automatically sync with the Render cloud database on app startup
             syncDatabaseWithServer()
         }
@@ -234,6 +236,13 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         _wizardStep.value = 1
     }
 
+    private val _bookingError = MutableStateFlow<String?>(null)
+    val bookingError: StateFlow<String?> = _bookingError.asStateFlow()
+
+    fun clearBookingError() {
+        _bookingError.value = null
+    }
+
     // Submit Booking to Room database
     fun submitBooking() {
         var servicesList = _selectedServices.value.joinToString(", ")
@@ -241,7 +250,7 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         if (cutSubtype.isNotBlank() && _selectedServices.value.contains("Sculpted Cut")) {
             servicesList = servicesList.replace("Sculpted Cut", "Sculpted Cut ($cutSubtype)")
         }
-        val stylist = _selectedStylist.value ?: "Aarav Sharma"
+        val stylist = _selectedStylist.value ?: "Mayank Sharma"
         val defaultDate = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH).run {
             val cal = java.util.Calendar.getInstance()
             cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
@@ -253,6 +262,21 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         val name = nameInput.value.trim()
 
         if (phone.isNotBlank() && name.isNotBlank()) {
+            // --- Duplicate booking conflict check ---
+            val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
+            val newDuration = calculateTotalServiceDuration()
+            val blockedSlots = getBlockedSlotsForStylistDate(
+                stylistName = stylist,
+                date = date,
+                allSlots = timesCode,
+                newServiceDurationMin = newDuration
+            )
+            if (blockedSlots.contains(time)) {
+                _bookingError.value = "This time slot is already booked for $stylist on $date. Please choose a different time."
+                return
+            }
+            // --- End conflict check ---
+
             val estimatedPrice = calculateEstimatePrice()
             viewModelScope.launch {
                 val newBooking = Booking(
@@ -271,6 +295,7 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
                     // Soft fallback
                 }
                 updateLogsFromInterceptor()
+                _bookingError.value = null
                 _latestBookingReceipt.value = newBooking
                 _wizardStep.value = 5 // Go to receipt confirmation
             }
@@ -342,7 +367,9 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
                     _authError.value = "Invalid ID or Password"
                 }
             } catch (e: Exception) {
-                _authError.value = "Server authentication failed: ${e.message}"
+                // SECURITY FIX (VULN-15): Never expose raw exception messages to the UI —
+                // they may contain internal server details, stack traces, or connection strings.
+                _authError.value = "Login failed. Please check your credentials and try again."
             }
             updateLogsFromInterceptor()
         }
@@ -358,18 +385,13 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        viewModelScope.launch {
-            repository.saveAdminProfile(
-                AdminProfile(
-                    id = 1,
-                    email = email,
-                    displayName = name,
-                    customGreeting = "Welcome back, Executive $name"
-                )
-            )
-            _isAdminLoggedIn.value = true
-            _authError.value = null
-        }
+        // SECURITY FIX (VULN-05): Admin registration MUST be verified server-side.
+        // Never grant _isAdminLoggedIn = true based purely on local input with no server check.
+        // The correct implementation requires the server to validate the registration request
+        // and return a JWT that confirms the new admin account was created successfully.
+        // For now: reject self-registration without a server-validated flow.
+        // TODO: Implement server-side admin registration endpoint with email verification.
+        _authError.value = "Self-registration is disabled. Contact the system administrator."
     }
 
     fun logoutAdmin() {
@@ -519,5 +541,87 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.clearAllData()
         }
+    }
+
+    // ==========================================
+    // SLOT CONFLICT DETECTION
+    // Returns list of time slots that are already booked (Active) for a given stylist + date.
+    // Also accounts for duration: if a slot starts at 9:00 AM for 20 min,
+    // then 9:00 AM slot is blocked for ANY new booking that overlaps.
+    // ==========================================
+    fun getBlockedSlotsForStylistDate(
+        stylistName: String,
+        date: String,
+        allSlots: List<String>,
+        newServiceDurationMin: Int
+    ): Set<String> {
+        val bookings = allBookings.value
+        val activeBookings = bookings.filter {
+            it.stylistName == stylistName &&
+            it.date == date &&
+            it.status == "Active"
+        }
+
+        if (activeBookings.isEmpty()) return emptySet()
+
+        val blocked = mutableSetOf<String>()
+
+        // Parse time string like "09:00 AM" to minutes-since-midnight
+        fun parseTimeToMinutes(timeStr: String): Int {
+            return try {
+                val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.ENGLISH)
+                val date2 = sdf.parse(timeStr.trim()) ?: return 0
+                val cal = java.util.Calendar.getInstance().apply { time = date2 }
+                cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+            } catch (e: Exception) { 0 }
+        }
+
+        // For each existing active booking: find its booked slot + duration
+        for (booking in activeBookings) {
+            val bookedStartMin = parseTimeToMinutes(booking.timeSlot)
+            // Estimate duration of the booked services from our services list
+            val bookedDuration = estimateDurationForServicesString(booking.services)
+            val bookedEndMin = bookedStartMin + bookedDuration
+
+            // Block any slot from allSlots that overlaps with this booking's time range
+            for (slot in allSlots) {
+                val slotStartMin = parseTimeToMinutes(slot)
+                val slotEndMin = slotStartMin + newServiceDurationMin
+
+                // A slot is blocked if:
+                // - It exactly matches the booked slot, OR
+                // - The new booking's time range [slotStart, slotEnd) overlaps with booked range [bookedStart, bookedEnd)
+                val overlaps = slotStartMin < bookedEndMin && slotEndMin > bookedStartMin
+                if (overlaps) {
+                    blocked.add(slot)
+                }
+            }
+        }
+        return blocked
+    }
+
+    // Estimate total duration in minutes from a booking's services string
+    // by matching against known services in the database
+    private fun estimateDurationForServicesString(servicesStr: String): Int {
+        val servicesList = allServices.value
+        var totalMin = 0
+        for (service in servicesList) {
+            if (servicesStr.contains(service.name, ignoreCase = true)) {
+                totalMin += service.durationMin
+            }
+        }
+        return if (totalMin == 0) 30 else totalMin // fallback 30 min
+    }
+
+    // Calculate total duration (minutes) of currently selected services
+    fun calculateTotalServiceDuration(): Int {
+        val selected = _selectedServices.value
+        val servicesList = allServices.value
+        var total = 0
+        for (sel in selected) {
+            val match = servicesList.find { it.name == sel }
+            total += match?.durationMin ?: 20 // fallback 20 min per service
+        }
+        return if (total == 0) 20 else total
     }
 }

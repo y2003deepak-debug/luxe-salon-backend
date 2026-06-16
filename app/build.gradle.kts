@@ -33,7 +33,11 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // SECURITY FIX (VULN-06): Enable R8 code minification and obfuscation for release.
+      // Without this, the APK ships with fully readable class/method/field names, making
+      // reverse engineering trivial. isMinifyEnabled = false is NEVER acceptable in production.
+      isMinifyEnabled = true
+      isShrinkResources = true   // Remove unused resources to reduce attack surface
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }

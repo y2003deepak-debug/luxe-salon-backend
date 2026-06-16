@@ -27,7 +27,7 @@ class MockServerInterceptor : Interceptor {
         )
 
         var remoteStylists = mutableListOf(
-            StylistDto(1, "Aarav Sharma", "Master Colorist", true, 0, null, null, null),
+            StylistDto(1, "Mayank Sharma", "Owner & Master Stylist", true, 0, null, null, null),
             StylistDto(2, "Priya Iyer", "Lead Hair Artisan", true, 1, null, null, null),
             StylistDto(3, "Amit Patel", "Creative Director", false, 2, null, null, null),
             StylistDto(4, "Rohan Das", "Treatments Lead", true, 3, null, null, null)

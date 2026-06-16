@@ -185,16 +185,23 @@ object RetrofitClient {
         .addLast(KotlinJsonAdapterFactory())
         .build()
 
+    // SECURITY FIX (VULN-04): Never log request/response BODY in any build — it exposes
+    // passwords, phone numbers, and PII to anyone with adb logcat access.
+    // BASIC level only logs method + URL, never credentials or personal data.
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (com.example.BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BASIC
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
     }
 
     // Explicit client with mock interceptor injected during viewModel setup
     var clientFactory: (OkHttpClient.Builder.() -> Unit) -> SalonApiService = { configurator ->
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .also { configurator(it) }
             .build()
 

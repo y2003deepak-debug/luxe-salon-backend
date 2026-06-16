@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SECURITY FIX (VULN-09): Network Security Configuration
+  - Enforces HTTPS-only communication (no cleartext allowed)
+  - Prepares the pin-set structure for SSL Certificate Pinning
+  - Restricts trust anchors to system CAs only (no user-installed CAs)
+
+  ACTION REQUIRED: Replace the placeholder SHA-256 pin below with your
+  server's actual public key pin. Get it by running:
+    openssl s_client -connect luxe-salon-backend-ekvo.onrender.com:443 2>/dev/null | \
+      openssl x509 -pubkey -noout | openssl pkey -pubin -outform DER | \
+      openssl dgst -sha256 -binary | base64
+  Always include a backup pin (from your CA or a backup key).
+-->
+<network-security-config>
+
+    <!-- Block all cleartext (HTTP) traffic for all domains by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Only trust system CAs — reject user-installed certificates (blocks Burp/Charles MITM) -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Domain-specific config for the production API server -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">luxe-salon-backend-ekvo.onrender.com</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+
+        <!--
+            CERTIFICATE PINNING — Uncomment and replace with actual pin once obtained.
+            IMPORTANT: Always include a backup pin to avoid locking users out during cert rotation.
+
+        <pin-set expiration="2027-06-01">
+            <pin digest="SHA-256">REPLACE_WITH_PRIMARY_PIN_BASE64=</pin>
+            <pin digest="SHA-256">REPLACE_WITH_BACKUP_PIN_BASE64=</pin>
+        </pin-set>
+        -->
+    </domain-config>
+
+    <!-- Allow cleartext only for localhost in debug/testing environments -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+</network-security-config>

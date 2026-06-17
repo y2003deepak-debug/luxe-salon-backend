@@ -405,24 +405,22 @@ app.post('/api/admin/login', (req, res) => {
     }
 
     // SECURITY FIX (VULN-01): Use constant-time comparison to prevent timing attacks.
-    // String equality (===) is vulnerable to timing side-channel attacks.
     let emailMatch = false;
     let passMatch = false;
     try {
-        // Buffers must be same length for timingSafeEqual
-        const emailBuf = Buffer.alloc(Math.max(email?.length || 0, adminEmail.length));
-        const adminEmailBuf = Buffer.alloc(Math.max(email?.length || 0, adminEmail.length));
-        emailBuf.write(email || '');
-        adminEmailBuf.write(adminEmail);
-        emailMatch = crypto.timingSafeEqual(emailBuf, adminEmailBuf);
+        const emailBuf = Buffer.from(email || '', 'utf8');
+        const adminEmailBuf = Buffer.from(adminEmail, 'utf8');
+        // timingSafeEqual requires same-length buffers; different lengths = no match
+        if (emailBuf.length === adminEmailBuf.length) {
+            emailMatch = crypto.timingSafeEqual(emailBuf, adminEmailBuf);
+        }
 
-        const passBuf = Buffer.alloc(Math.max(password?.length || 0, adminPassword.length));
-        const adminPassBuf = Buffer.alloc(Math.max(password?.length || 0, adminPassword.length));
-        passBuf.write(password || '');
-        adminPassBuf.write(adminPassword);
-        passMatch = crypto.timingSafeEqual(passBuf, adminPassBuf);
+        const passBuf = Buffer.from(password || '', 'utf8');
+        const adminPassBuf = Buffer.from(adminPassword, 'utf8');
+        if (passBuf.length === adminPassBuf.length) {
+            passMatch = crypto.timingSafeEqual(passBuf, adminPassBuf);
+        }
     } catch (e) {
-        // Length mismatch means definitely not equal
         emailMatch = false;
         passMatch = false;
     }

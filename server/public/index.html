@@ -110,7 +110,7 @@
         </div>
         <div class="hidden md:flex items-center gap-8">
             <a class="text-primary font-medium font-label text-label-sm uppercase tracking-widest hover:opacity-80 transition-opacity" href="#">Home</a>
-            <a class="text-on-surface-variant font-label text-label-sm uppercase tracking-widest hover:text-primary transition-colors" href="#">Admin</a>
+            <a class="admin-trigger text-on-surface-variant font-label text-label-sm uppercase tracking-widest hover:text-primary transition-colors cursor-pointer" href="javascript:void(0)">Admin</a>
         </div>
         <div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center border border-primary/20 overflow-hidden cursor-pointer active:scale-95 transition-transform">
             <img alt="Profile" class="w-full h-full object-cover" src="app_icon.png">
@@ -280,6 +280,77 @@
     </div>
 </section>
 
+<!-- Easy Installation Guide -->
+<section class="py-20 px-6 bg-surface-container-low/20 border-t border-b border-outline-variant/10">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16">
+            <span class="inline-block px-4 py-1.5 rounded-full bg-primary-container/10 border border-primary/20 text-primary font-label text-label-sm uppercase tracking-widest mb-4">
+                Step-by-Step
+            </span>
+            <h2 class="font-headline font-semibold text-3xl md:text-4xl mb-4 tracking-tight">Easy Installation Guide</h2>
+            <p class="text-on-surface-variant max-w-2xl mx-auto">Follow these simple steps to install our application directly on your Android device. Direct downloads bypass the app store but are completely safe.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Step 1 -->
+            <div class="relative bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col items-center text-center">
+                <div class="absolute -top-5 left-6 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold font-headline text-lg shadow-md border-2 border-white">
+                    1
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-primary-container/15 flex items-center justify-center text-primary mt-4 mb-4">
+                    <span class="material-symbols-outlined text-2xl">download</span>
+                </div>
+                <h4 class="font-bold text-on-surface text-base mb-2">Download APK</h4>
+                <p class="text-on-surface-variant text-xs leading-relaxed font-light">
+                    Click any **Download APK** button. If your browser warns you that the "file might be harmful", tap **Download anyway** to proceed.
+                </p>
+            </div>
+            
+            <!-- Step 2 -->
+            <div class="relative bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col items-center text-center">
+                <div class="absolute -top-5 left-6 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold font-headline text-lg shadow-md border-2 border-white">
+                    2
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-primary-container/15 flex items-center justify-center text-primary mt-4 mb-4">
+                    <span class="material-symbols-outlined text-2xl">open_in_new</span>
+                </div>
+                <h4 class="font-bold text-on-surface text-base mb-2">Open the File</h4>
+                <p class="text-on-surface-variant text-xs leading-relaxed font-light">
+                    Wait for the download to complete, then open the file from your notifications bar or your device's **Downloads** folder.
+                </p>
+            </div>
+            
+            <!-- Step 3 -->
+            <div class="relative bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col items-center text-center">
+                <div class="absolute -top-5 left-6 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold font-headline text-lg shadow-md border-2 border-white">
+                    3
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-primary-container/15 flex items-center justify-center text-primary mt-4 mb-4">
+                    <span class="material-symbols-outlined text-2xl">security</span>
+                </div>
+                <h4 class="font-bold text-on-surface text-base mb-2">Allow Unknown Sources</h4>
+                <p class="text-on-surface-variant text-xs leading-relaxed font-light">
+                    If prompted by Android system security, click **Settings** and turn on **Allow from this source** for your web browser.
+                </p>
+            </div>
+            
+            <!-- Step 4 -->
+            <div class="relative bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col items-center text-center">
+                <div class="absolute -top-5 left-6 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold font-headline text-lg shadow-md border-2 border-white">
+                    4
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-primary-container/15 flex items-center justify-center text-primary mt-4 mb-4">
+                    <span class="material-symbols-outlined text-2xl">check_circle</span>
+                </div>
+                <h4 class="font-bold text-on-surface text-base mb-2">Install & Enjoy</h4>
+                <p class="text-on-surface-variant text-xs leading-relaxed font-light">
+                    Go back to the installer and click **Install**. Once finished, select **Open** to start booking your premium treatments!
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- CTA Section -->
 <section class="py-24 px-6">
     <div class="max-w-4xl mx-auto glass-card rounded-[2.5rem] p-12 text-center border border-primary/20 shadow-[0_40px_80px_rgba(197,160,89,0.1)] relative overflow-hidden transition-all duration-700 opacity-100 translate-y-0">
@@ -321,7 +392,7 @@
                 <h4 class="font-bold text-on-surface mb-6 uppercase text-xs tracking-widest">Navigation</h4>
                 <ul class="space-y-4 text-on-surface-variant text-sm">
                     <li class=""><a class="hover:text-primary transition-colors" href="#">Home</a></li>
-                    <li class=""><a class="hover:text-primary transition-colors" href="#">Admin</a></li>
+                    <li class=""><a class="admin-trigger hover:text-primary transition-colors cursor-pointer" href="javascript:void(0)">Admin</a></li>
                 </ul>
             </div>
             <div>
@@ -346,7 +417,7 @@
         <span class="material-symbols-outlined">home</span>
         <span class="font-label text-[10px] uppercase tracking-widest mt-0.5">Home</span>
     </a>
-    <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-90 duration-200" href="#">
+    <a class="admin-trigger flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-90 duration-200 cursor-pointer" href="javascript:void(0)">
         <span class="material-symbols-outlined">admin_panel_settings</span>
         <span class="font-label text-[10px] uppercase tracking-widest mt-0.5">Admin</span>
     </a>
@@ -389,5 +460,37 @@
     });
 </script>
 <script src="app.js"></script>
+
+<!-- Admin Info Modal -->
+<div id="admin-modal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+    <!-- Modal Backdrop -->
+    <div id="admin-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    
+    <!-- Modal Content -->
+    <div class="relative glass-card w-11/12 max-w-md p-8 rounded-3xl border border-primary/30 shadow-[0_30px_60px_rgba(0,0,0,0.4)] transform scale-95 opacity-0 transition-all duration-300 z-10" id="admin-modal-content">
+        <div class="flex flex-col items-center text-center">
+            <!-- Icon -->
+            <div class="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center border border-primary/30 text-primary mb-6">
+                <span class="material-symbols-outlined text-4xl">admin_panel_settings</span>
+            </div>
+            
+            <!-- Title -->
+            <h3 class="font-headline font-semibold text-2xl text-on-surface mb-3 tracking-tight">Admin Portal Access</h3>
+            
+            <!-- Description -->
+            <p class="text-on-surface-variant text-sm leading-relaxed mb-6 font-light">
+                To guarantee top-tier security and streamline operations, the Admin Control Panel is exclusively integrated within the **Mayank Gents Parlour Mobile App**. 
+                <br><br>
+                Please download and install our app, then access the **Admin** tab inside the app to log in and manage bookings, stylists, and services.
+            </p>
+            
+            <!-- Action Button -->
+            <button id="admin-modal-close" class="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors active:scale-95 duration-150 shadow-md">
+                Ok, Got It
+            </button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

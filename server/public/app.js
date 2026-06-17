@@ -46,4 +46,42 @@ document.addEventListener('DOMContentLoaded', () => {
             if (downloadBtnHero) downloadBtnHero.href = fallbackApkUrl;
             if (downloadBtnCta) downloadBtnCta.href = fallbackApkUrl;
         });
+
+    // Admin Info Modal logic
+    const adminModal = document.getElementById('admin-modal');
+    const adminModalContent = document.getElementById('admin-modal-content');
+    const adminModalClose = document.getElementById('admin-modal-close');
+    const adminModalBackdrop = document.getElementById('admin-modal-backdrop');
+    const adminTriggers = document.querySelectorAll('.admin-trigger');
+
+    const openAdminModal = () => {
+        if (!adminModal || !adminModalContent) return;
+        adminModal.classList.remove('opacity-0', 'pointer-events-none');
+        adminModal.classList.add('opacity-100');
+        adminModalContent.classList.remove('opacity-0', 'scale-95');
+        adminModalContent.classList.add('opacity-100', 'scale-100');
+    };
+
+    const closeAdminModal = () => {
+        if (!adminModal || !adminModalContent) return;
+        adminModal.classList.remove('opacity-100');
+        adminModal.classList.add('opacity-0', 'pointer-events-none');
+        adminModalContent.classList.remove('opacity-100', 'scale-100');
+        adminModalContent.classList.add('opacity-0', 'scale-95');
+    };
+
+    adminTriggers.forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            openAdminModal();
+        });
+    });
+
+    if (adminModalClose) {
+        adminModalClose.addEventListener('click', closeAdminModal);
+    }
+
+    if (adminModalBackdrop) {
+        adminModalBackdrop.addEventListener('click', closeAdminModal);
+    }
 });

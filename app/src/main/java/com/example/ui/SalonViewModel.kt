@@ -197,10 +197,19 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
     fun checkForAppUpdates() {
         viewModelScope.launch {
             try {
-                val versionInfo = apiService.getAppVersion()
-                val currentVersionCode = com.example.BuildConfig.VERSION_CODE
-                if (versionInfo.versionCode > currentVersionCode) {
-                    _appUpdateInfo.value = versionInfo
+                val context = getApplication<Application>()
+                val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val lastCheck = prefs.getLong("last_update_check", 0L)
+                val currentTime = System.currentTimeMillis()
+                
+                // Only request server update status if 24 hours have elapsed
+                if (currentTime - lastCheck >= 24 * 60 * 60 * 1000L) {
+                    val versionInfo = apiService.getAppVersion()
+                    val currentVersionCode = com.example.BuildConfig.VERSION_CODE
+                    if (versionInfo.versionCode > currentVersionCode) {
+                        _appUpdateInfo.value = versionInfo
+                    }
+                    prefs.edit().putLong("last_update_check", currentTime).apply()
                 }
             } catch (e: Exception) {
                 // Soft fallback

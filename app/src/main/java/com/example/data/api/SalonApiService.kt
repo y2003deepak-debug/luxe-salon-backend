@@ -190,7 +190,7 @@ data class AppVersionDto(
 
 // API engine initialization
 object RetrofitClient {
-    private const val BASE_URL = "https://mayank-gents-backend-ekvo.onrender.com/"
+    private const val BASE_URL = "https://luxe-salon-backend-ekvo.onrender.com/"
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())

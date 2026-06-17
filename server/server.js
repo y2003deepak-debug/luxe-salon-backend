@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
-const fs = require('fs');
 
 // Load environment variables if a .env file exists (useful for local development)
 require('dotenv').config();
@@ -64,40 +63,6 @@ const defaultStylists = [
     { id: 3, name: "Amit Patel", specialty: "Creative Director", isAvailable: false, avatarColorIndex: 2, imageUrl: null, awayUntilDate: null, awayUntilTime: null },
     { id: 4, name: "Rohan Das", specialty: "Treatments Lead", isAvailable: true, avatarColorIndex: 3, imageUrl: null, awayUntilDate: null, awayUntilTime: null }
 ];
-
-// JSON File Database Helper Functions (fallback for offline/local run)
-const JSON_DB_PATH = path.join(__dirname, 'database.json');
-
-function initJsonDb() {
-    if (!fs.existsSync(JSON_DB_PATH)) {
-        const initialData = {
-            services: defaultServices,
-            stylists: defaultStylists,
-            bookings: []
-        };
-        fs.writeFileSync(JSON_DB_PATH, JSON.stringify(initialData, null, 2), 'utf8');
-        console.log("Initialized new local JSON database.");
-    }
-}
-
-function readJsonDb() {
-    initJsonDb();
-    try {
-        const data = fs.readFileSync(JSON_DB_PATH, 'utf8');
-        return JSON.parse(data);
-    } catch (err) {
-        console.error("Error reading JSON database, returning defaults", err);
-        return { services: defaultServices, stylists: defaultStylists, bookings: [] };
-    }
-}
-
-function writeJsonDb(data) {
-    try {
-        fs.writeFileSync(JSON_DB_PATH, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        console.error("Error writing JSON database", err);
-    }
-}
 
 // MongoDB Schemas & Models
 const serviceSchema = new mongoose.Schema({
@@ -183,10 +148,13 @@ async function connectDatabase() {
     }
 }
 
-// Middleware to check database connection (logs warning but allows JSON database fallback)
+// Middleware to block requests if MongoDB is not connected
 const checkDbConnection = (req, res, next) => {
     if (!isMongoConnected) {
-        console.warn("[DATABASE WARNING] MongoDB not connected, using database.json fallback.");
+        return res.status(503).json({
+            error: "Service Unavailable",
+            message: "Database is not connected. Please set a valid MONGODB_URI and verify database whitelist settings."
+        });
     }
     next();
 };
@@ -226,16 +194,11 @@ app.use('/api', checkDbConnection);
 
 // --- SERVICES ENDPOINTS ---
 app.get('/api/services', async (req, res) => {
-    if (isMongoConnected) {
-        try {
-            const list = await Service.find().sort({ id: 1 });
-            res.json(list);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        res.json(db.services);
+    try {
+        const list = await Service.find().sort({ id: 1 });
+        res.json(list);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -245,30 +208,11 @@ app.post('/api/services', async (req, res) => {
         return res.status(400).json({ error: "Missing name or valid price" });
     }
 
-    if (isMongoConnected) {
-        try {
-            const lastService = await Service.findOne().sort({ id: -1 });
-            const nextId = lastService ? lastService.id + 1 : 1;
-            const newService = new Service({
-                id: nextId,
-                name,
-                price: parseFloat(price),
-                description: description || "",
-                durationMin: parseInt(durationMin) || 30,
-                nameHindi: nameHindi || "",
-                suitability: suitability || "",
-                isPremium: isPremium === true || isPremium === "true"
-            });
-            await newService.save();
-            res.status(201).json(newService);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        const maxId = db.services.length > 0 ? Math.max(...db.services.map(s => s.id)) : 0;
-        const newService = {
-            id: maxId + 1,
+    try {
+        const lastService = await Service.findOne().sort({ id: -1 });
+        const nextId = lastService ? lastService.id + 1 : 1;
+        const newService = new Service({
+            id: nextId,
             name,
             price: parseFloat(price),
             description: description || "",
@@ -276,10 +220,11 @@ app.post('/api/services', async (req, res) => {
             nameHindi: nameHindi || "",
             suitability: suitability || "",
             isPremium: isPremium === true || isPremium === "true"
-        };
-        db.services.push(newService);
-        writeJsonDb(db);
+        });
+        await newService.save();
         res.status(201).json(newService);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -289,33 +234,21 @@ app.delete('/api/services/:id', async (req, res) => {
         return res.status(400).json({ error: "Invalid ID" });
     }
 
-    if (isMongoConnected) {
-        try {
-            await Service.deleteOne({ id });
-            res.status(204).send();
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        db.services = db.services.filter(s => s.id !== id);
-        writeJsonDb(db);
+    try {
+        await Service.deleteOne({ id });
         res.status(204).send();
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 // --- STYLISTS ENDPOINTS ---
 app.get('/api/stylists', async (req, res) => {
-    if (isMongoConnected) {
-        try {
-            const list = await Stylist.find().sort({ id: 1 });
-            res.json(list);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        res.json(db.stylists);
+    try {
+        const list = await Stylist.find().sort({ id: 1 });
+        res.json(list);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -325,30 +258,11 @@ app.post('/api/stylists', async (req, res) => {
         return res.status(400).json({ error: "Missing name or specialty" });
     }
 
-    if (isMongoConnected) {
-        try {
-            const lastStylist = await Stylist.findOne().sort({ id: -1 });
-            const nextId = lastStylist ? lastStylist.id + 1 : 1;
-            const newStylist = new Stylist({
-                id: nextId,
-                name,
-                specialty,
-                isAvailable: isAvailable ?? true,
-                avatarColorIndex: parseInt(avatarColorIndex) || 0,
-                imageUrl: imageUrl || null,
-                awayUntilDate: awayUntilDate || null,
-                awayUntilTime: awayUntilTime || null
-            });
-            await newStylist.save();
-            res.status(201).json(newStylist);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        const maxId = db.stylists.length > 0 ? Math.max(...db.stylists.map(s => s.id)) : 0;
-        const newStylist = {
-            id: maxId + 1,
+    try {
+        const lastStylist = await Stylist.findOne().sort({ id: -1 });
+        const nextId = lastStylist ? lastStylist.id + 1 : 1;
+        const newStylist = new Stylist({
+            id: nextId,
             name,
             specialty,
             isAvailable: isAvailable ?? true,
@@ -356,10 +270,11 @@ app.post('/api/stylists', async (req, res) => {
             imageUrl: imageUrl || null,
             awayUntilDate: awayUntilDate || null,
             awayUntilTime: awayUntilTime || null
-        };
-        db.stylists.push(newStylist);
-        writeJsonDb(db);
+        });
+        await newStylist.save();
         res.status(201).json(newStylist);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -369,87 +284,37 @@ app.delete('/api/stylists/:id', async (req, res) => {
         return res.status(400).json({ error: "Invalid ID" });
     }
 
-    if (isMongoConnected) {
-        try {
-            await Stylist.deleteOne({ id });
-            res.status(204).send();
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        db.stylists = db.stylists.filter(s => s.id !== id);
-        writeJsonDb(db);
+    try {
+        await Stylist.deleteOne({ id });
         res.status(204).send();
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 // --- BOOKINGS ENDPOINTS ---
 app.get('/api/bookings', async (req, res) => {
-    if (isMongoConnected) {
-        try {
-            const list = await Booking.find().sort({ timestamp: -1 });
-            res.json(list);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        const list = [...db.bookings].sort((a, b) => b.timestamp - a.timestamp);
+    try {
+        const list = await Booking.find().sort({ timestamp: -1 });
         res.json(list);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/bookings', async (req, res) => {
     const { phoneNumber, clientName, servicesName, stylistName, date, timeSlot, status, priceEstimate, timestamp } = req.body;
 
-    if (isMongoConnected) {
-        try {
-            // --- Duplicate booking conflict check ---
-            if (stylistName && date && timeSlot) {
-                const conflicting = await Booking.findOne({
-                    stylistName: stylistName,
-                    date: date,
-                    timeSlot: timeSlot,
-                    status: 'Active'
-                });
-                if (conflicting) {
-                    return res.status(409).json({
-                        error: 'Booking conflict',
-                        message: `Time slot ${timeSlot} on ${date} is already booked for ${stylistName}.`
-                    });
-                }
-            }
-
-            const lastBooking = await Booking.findOne().sort({ id: -1 });
-            const nextId = lastBooking ? lastBooking.id + 1 : 1;
-            const newBooking = new Booking({
-                id: nextId,
-                phoneNumber: phoneNumber || "",
-                clientName: clientName || "",
-                services: servicesName || req.body.services || "",
-                stylistName: stylistName || "",
-                date: date || "",
-                timeSlot: timeSlot || "",
-                status: status || "Active",
-                priceEstimate: parseFloat(priceEstimate) || 0.0,
-                timestamp: timestamp || Date.now()
-            });
-            await newBooking.save();
-            res.status(201).json(newBooking);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
+    try {
         // --- Duplicate booking conflict check ---
+        // Reject if there's already an active booking for the same stylist + date + timeSlot
         if (stylistName && date && timeSlot) {
-            const conflicting = db.bookings.find(b => 
-                b.stylistName === stylistName && 
-                b.date === date && 
-                b.timeSlot === timeSlot && 
-                b.status === 'Active'
-            );
+            const conflicting = await Booking.findOne({
+                stylistName: stylistName,
+                date: date,
+                timeSlot: timeSlot,
+                status: 'Active'
+            });
             if (conflicting) {
                 return res.status(409).json({
                     error: 'Booking conflict',
@@ -457,10 +322,12 @@ app.post('/api/bookings', async (req, res) => {
                 });
             }
         }
+        // --- End conflict check ---
 
-        const maxId = db.bookings.length > 0 ? Math.max(...db.bookings.map(b => b.id)) : 0;
-        const newBooking = {
-            id: maxId + 1,
+        const lastBooking = await Booking.findOne().sort({ id: -1 });
+        const nextId = lastBooking ? lastBooking.id + 1 : 1;
+        const newBooking = new Booking({
+            id: nextId,
             phoneNumber: phoneNumber || "",
             clientName: clientName || "",
             services: servicesName || req.body.services || "",
@@ -470,10 +337,11 @@ app.post('/api/bookings', async (req, res) => {
             status: status || "Active",
             priceEstimate: parseFloat(priceEstimate) || 0.0,
             timestamp: timestamp || Date.now()
-        };
-        db.bookings.push(newBooking);
-        writeJsonDb(db);
+        });
+        await newBooking.save();
         res.status(201).json(newBooking);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -483,18 +351,11 @@ app.delete('/api/bookings/:id', async (req, res) => {
         return res.status(400).json({ error: "Invalid ID" });
     }
 
-    if (isMongoConnected) {
-        try {
-            await Booking.deleteOne({ id });
-            res.status(204).send();
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        db.bookings = db.bookings.filter(b => b.id !== id);
-        writeJsonDb(db);
+    try {
+        await Booking.deleteOne({ id });
         res.status(204).send();
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -509,29 +370,18 @@ app.put('/api/bookings/:id/status', async (req, res) => {
         return res.status(400).json({ error: "Missing status" });
     }
 
-    if (isMongoConnected) {
-        try {
-            const updatedBooking = await Booking.findOneAndUpdate(
-                { id },
-                { status },
-                { new: true }
-            );
-            if (!updatedBooking) {
-                return res.status(404).json({ error: "Booking not found" });
-            }
-            res.json(updatedBooking);
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    } else {
-        const db = readJsonDb();
-        const bookingIdx = db.bookings.findIndex(b => b.id === id);
-        if (bookingIdx === -1) {
+    try {
+        const updatedBooking = await Booking.findOneAndUpdate(
+            { id },
+            { status },
+            { new: true }
+        );
+        if (!updatedBooking) {
             return res.status(404).json({ error: "Booking not found" });
         }
-        db.bookings[bookingIdx].status = status;
-        writeJsonDb(db);
-        res.json(db.bookings[bookingIdx]);
+        res.json(updatedBooking);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -626,22 +476,13 @@ if (process.env.NODE_ENV !== 'production') {
         if (!devSecret || devSecret !== process.env.DEV_SECRET) {
             return res.status(401).json({ error: 'Unauthorized: missing x-dev-secret header' });
         }
-        if (isMongoConnected) {
-            try {
-                await Service.deleteMany({});
-                await Stylist.deleteMany({});
-                await Booking.deleteMany({});
-                res.status(204).send();
-            } catch (e) {
-                res.status(500).json({ error: 'Failed to clear tables' });
-            }
-        } else {
-            const db = readJsonDb();
-            db.services = [];
-            db.stylists = [];
-            db.bookings = [];
-            writeJsonDb(db);
+        try {
+            await Service.deleteMany({});
+            await Stylist.deleteMany({});
+            await Booking.deleteMany({});
             res.status(204).send();
+        } catch (e) {
+            res.status(500).json({ error: 'Failed to clear tables' });
         }
     });
 }

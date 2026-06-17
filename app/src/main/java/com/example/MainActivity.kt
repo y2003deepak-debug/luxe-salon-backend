@@ -1634,6 +1634,27 @@ fun AdminAuthScreen(viewModel: SalonViewModel) {
     }
 }
 
+fun isBookingTimeSlotPassed(dateStr: String, timeStr: String): Boolean {
+    return try {
+        val now = java.util.Calendar.getInstance()
+        val currentYear = now.get(java.util.Calendar.YEAR)
+        val cleanTimeStr = timeStr.split("-").first().trim()
+        val combinedStr = "$dateStr $currentYear $cleanTimeStr"
+        val sdf = java.text.SimpleDateFormat("EEE, MMM dd yyyy hh:mm a", java.util.Locale.ENGLISH)
+        val bookingTime = java.util.Calendar.getInstance()
+        val parsedDate = sdf.parse(combinedStr) ?: return false
+        bookingTime.time = parsedDate
+        
+        // Year roll-over logic:
+        if (bookingTime.get(java.util.Calendar.MONTH) == 0 && now.get(java.util.Calendar.MONTH) == 11) {
+            bookingTime.add(java.util.Calendar.YEAR, 1)
+        }
+        bookingTime.before(now)
+    } catch (e: Exception) {
+        false
+    }
+}
+
 @Composable
 fun AdminDashboardScreen(viewModel: SalonViewModel) {
     val profile by viewModel.adminProfile.collectAsStateWithLifecycle()
@@ -1860,8 +1881,9 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                     letterSpacing = 0.5.sp
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
+                                val activeLogs = logs.filter { !isBookingTimeSlotPassed(it.date, it.timeSlot) }
 
-                                if (logs.isEmpty()) {
+                                if (activeLogs.isEmpty()) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1885,7 +1907,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                         border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.1f))
                                     ) {
                                         Column {
-                                            logs.take(5).forEachIndexed { i, log ->
+                                            activeLogs.take(5).forEachIndexed { i, log ->
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -1904,16 +1926,16 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                             contentAlignment = Alignment.Center
                                                         ) {
                                                             Text(
-                                                                text = if (log.phoneNumber.length > 5) log.phoneNumber.takeLast(2) else "CL",
+                                                                text = "${i + 1}",
                                                                 color = GoldPrimary,
-                                                                fontSize = 9.sp,
+                                                                fontSize = 10.sp,
                                                                 fontWeight = FontWeight.ExtraBold
                                                             )
                                                         }
                                                         Spacer(modifier = Modifier.width(10.dp))
                                                         Column {
                                                             Text(text = log.services, color = SoftObsidian, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                            Text(text = "${log.clientName} • ${log.stylistName} • ${log.date}", color = CharcoalGray.copy(0.7f), fontSize = 10.sp)
+                                                            Text(text = "${i + 1}. ${log.clientName} • ${log.stylistName} • ${log.date}", color = CharcoalGray.copy(0.7f), fontSize = 10.sp)
                                                         }
                                                     }
                                                     Column(horizontalAlignment = Alignment.End) {
@@ -1922,7 +1944,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                         Text(text = log.status.uppercase(), color = c, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                                                     }
                                                 }
-                                                if (i < logs.take(5).size - 1) {
+                                                 if (i < activeLogs.take(5).size - 1) {
                                                     HorizontalDivider(color = GoldPrimary.copy(alpha = 0.08f), thickness = 0.5.dp)
                                                 }
                                             }
@@ -2172,7 +2194,8 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                               b.clientName.contains(bookingPhoneSearch, ignoreCase = true) ||
                                               b.services.contains(bookingPhoneSearch, ignoreCase = true)
                             val matchStatus = bookingStatusFilter == "All" || b.status.equals(bookingStatusFilter, ignoreCase = true)
-                            matchSearch && matchStatus
+                            val notPassed = !isBookingTimeSlotPassed(b.date, b.timeSlot)
+                            matchSearch && matchStatus && notPassed
                         }
 
                         if (filteredBookings.isEmpty()) {
@@ -2207,7 +2230,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Column {
-                                                    Text(text = booking.clientName, color = SoftObsidian, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                    Text(text = "${i + 1}. ${booking.clientName}", color = SoftObsidian, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                                     Text(text = "Mob: ${booking.phoneNumber}", color = CharcoalGray.copy(0.7f), fontSize = 10.sp)
                                                 }
 

@@ -45,24 +45,9 @@ app.disable('x-powered-by');
 let isMongoConnected = false;
 
 // Default initial seed data
-const defaultServices = [
-    { id: 1, name: "Sculpted Cut", price: 120.0, description: "Elite cut & visual architecture consultation", durationMin: 45, nameHindi: "", suitability: "", isPremium: false },
-    { id: 2, name: "Artisan Color", price: 250.0, description: "Custom balayage coloring & gloss therapy", durationMin: 120, nameHindi: "", suitability: "", isPremium: false },
-    { id: 3, name: "Deep Hydration", price: 85.0, description: "Intense botanical scalp organic bath", durationMin: 30, nameHindi: "", suitability: "", isPremium: false },
-    { id: 4, name: "Signature Blowout", price: 75.0, description: "Silk infusion treatment extra volume blowout", durationMin: 60, nameHindi: "", suitability: "", isPremium: false },
-    // Premium Hair Sculptures
-    { id: 5, name: "Royal Taper Fade", price: 350.0, description: "Precision-engineered classic finish, seamless side blend.", durationMin: 45, nameHindi: "शाही टेपर फेड", suitability: "Round & Oval Faces • Soft hair", isPremium: true },
-    { id: 6, name: "Textured Feather Crop", price: 450.0, description: "Organic layered volume with sharp fluid crown movement.", durationMin: 45, nameHindi: "लेयर्ड फेदर क्रॉप", suitability: "Square & Heart Faces • Thick hair", isPremium: true },
-    { id: 7, name: "Executive Pompadour", price: 300.0, description: "High royal volume front sweep with meticulous temple shape.", durationMin: 45, nameHindi: "द एक्सीक्यूटिव पॉम्पाडोर", suitability: "All Face Types • Voluble hair", isPremium: true },
-    { id: 8, name: "Velvet Bob Contour", price: 400.0, description: "Ultra-sleek French bob lines with custom side profile shaping.", durationMin: 45, nameHindi: "मखमली बॉब", suitability: "Oval & Diamond Faces • Straight hair", isPremium: true }
-];
+const defaultServices = [];
 
-const defaultStylists = [
-    { id: 1, name: "Mayank Sharma", specialty: "Owner & Master Stylist", isAvailable: true, avatarColorIndex: 0, imageUrl: null, awayUntilDate: null, awayUntilTime: null },
-    { id: 2, name: "Priya Iyer", specialty: "Lead Hair Artisan", isAvailable: true, avatarColorIndex: 1, imageUrl: null, awayUntilDate: null, awayUntilTime: null },
-    { id: 3, name: "Amit Patel", specialty: "Creative Director", isAvailable: false, avatarColorIndex: 2, imageUrl: null, awayUntilDate: null, awayUntilTime: null },
-    { id: 4, name: "Rohan Das", specialty: "Treatments Lead", isAvailable: true, avatarColorIndex: 3, imageUrl: null, awayUntilDate: null, awayUntilTime: null }
-];
+const defaultStylists = [];
 
 // MongoDB Schemas & Models
 const serviceSchema = new mongoose.Schema({
@@ -137,6 +122,13 @@ async function connectDatabase() {
             });
             console.log("Connected to MongoDB successfully!");
             isMongoConnected = true;
+            
+            // WIPE ALL DEMO DATA (Cleans MongoDB Atlas database on server startup)
+            await Service.deleteMany({});
+            await Stylist.deleteMany({});
+            await Booking.deleteMany({});
+            console.log("Wiped all demo data from MongoDB Atlas.");
+
             await seedMongoIfEmpty();
         } catch (err) {
             console.error("MongoDB connection failed!", err.message);

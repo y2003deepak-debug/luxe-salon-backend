@@ -1935,7 +1935,7 @@ fun AdminDashboardScreen(viewModel: SalonViewModel) {
                                                         Spacer(modifier = Modifier.width(10.dp))
                                                         Column {
                                                             Text(text = log.services, color = SoftObsidian, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                            Text(text = "${i + 1}. ${log.clientName} • ${log.stylistName} • ${log.date}", color = CharcoalGray.copy(0.7f), fontSize = 10.sp)
+                                                            Text(text = "${i + 1}. ${log.clientName} • ${log.stylistName} • ${log.date} @ ${log.timeSlot}", color = CharcoalGray.copy(0.7f), fontSize = 10.sp)
                                                         }
                                                     }
                                                     Column(horizontalAlignment = Alignment.End) {

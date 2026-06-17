@@ -1,7 +1,7 @@
 {
-  "name": "luxe-salon-backend",
+  "name": "mayank-gents-backend",
   "version": "1.0.0",
-  "description": "Production ready REST API backend for Luxe Salon App, deployable on Render",
+  "description": "Production ready REST API backend for mayank gents App, deployable on Render",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

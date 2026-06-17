@@ -1,6 +1,8 @@
 {
-  "name": "Luxe Salon",
+  "name": "mayank gents",
   "description": "A premium, gold-and-obsidian themed booking and administrative salon management application.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

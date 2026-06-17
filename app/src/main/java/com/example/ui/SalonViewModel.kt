@@ -108,6 +108,10 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // App update check flow
+    private val _appUpdateInfo = MutableStateFlow<AppVersionDto?>(null)
+    val appUpdateInfo: StateFlow<AppVersionDto?> = _appUpdateInfo.asStateFlow()
+
     // Current navigation tab state (0: Home, 1: Booking Wizard, 2: Lookup, 3: Admin Dashboard)
     private val _currentTab = MutableStateFlow(0)
     val currentTab: StateFlow<Int> = _currentTab.asStateFlow()
@@ -186,7 +190,26 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
             // server-side authentication. This prevents credential harvesting from the local DB.
             // Automatically sync with the Render cloud database on app startup
             syncDatabaseWithServer()
+            checkForAppUpdates()
         }
+    }
+
+    fun checkForAppUpdates() {
+        viewModelScope.launch {
+            try {
+                val versionInfo = apiService.getAppVersion()
+                val currentVersionCode = com.example.BuildConfig.VERSION_CODE
+                if (versionInfo.versionCode > currentVersionCode) {
+                    _appUpdateInfo.value = versionInfo
+                }
+            } catch (e: Exception) {
+                // Soft fallback
+            }
+        }
+    }
+
+    fun dismissAppUpdate() {
+        _appUpdateInfo.value = null
     }
 
     fun selectTab(tabIndex: Int) {
@@ -327,7 +350,7 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveAdminIdentity(newDisplayName: String, newGreeting: String) {
         viewModelScope.launch {
-            val currentProfile = repository.adminProfile.first() ?: AdminProfile(id = 1, email = "admin@luxesalon.com", displayName = "", customGreeting = "")
+            val currentProfile = repository.adminProfile.first() ?: AdminProfile(id = 1, email = "admin@mayankgents.com", displayName = "", customGreeting = "")
             repository.saveAdminProfile(
                 currentProfile.copy(
                     displayName = newDisplayName,

@@ -1,5 +1,5 @@
 # ============================================================
-# LUXE SALON — PRODUCTION PROGUARD / R8 RULES
+# mayank gents — PRODUCTION PROGUARD / R8 RULES
 # SECURITY FIX: VULN-06 — Code Obfuscation & Hardening
 # ============================================================
 

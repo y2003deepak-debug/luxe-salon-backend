@@ -7,7 +7,7 @@
 
   ACTION REQUIRED: Replace the placeholder SHA-256 pin below with your
   server's actual public key pin. Get it by running:
-    openssl s_client -connect luxe-salon-backend-ekvo.onrender.com:443 2>/dev/null | \
+    openssl s_client -connect mayank-gents-backend-ekvo.onrender.com:443 2>/dev/null | \
       openssl x509 -pubkey -noout | openssl pkey -pubin -outform DER | \
       openssl dgst -sha256 -binary | base64
   Always include a backup pin (from your CA or a backup key).
@@ -24,7 +24,7 @@
 
     <!-- Domain-specific config for the production API server -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">luxe-salon-backend-ekvo.onrender.com</domain>
+        <domain includeSubdomains="true">mayank-gents-backend-ekvo.onrender.com</domain>
 
         <trust-anchors>
             <certificates src="system" />

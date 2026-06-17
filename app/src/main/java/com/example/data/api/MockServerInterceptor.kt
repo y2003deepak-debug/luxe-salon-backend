@@ -220,10 +220,10 @@ class MockServerInterceptor : Interceptor {
                     }
                     val loginAdapter = moshi.adapter(AdminLoginDto::class.java)
                     val loginReq = loginAdapter.fromJson(json)
-                    if (loginReq != null && loginReq.email == "admin@luxesalon.com" && loginReq.password == "luxuryadmin123") {
+                    if (loginReq != null && loginReq.email == "admin@mayankgents.com" && loginReq.password == "luxuryadmin123") {
                         responseBodyString = """{
                             "success": true,
-                            "email": "admin@luxesalon.com",
+                            "email": "admin@mayankgents.com",
                             "displayName": "Executive Admin",
                             "customGreeting": "Welcome back, Executive Admin"
                         }""".trimIndent()
@@ -232,6 +232,16 @@ class MockServerInterceptor : Interceptor {
                         responseBodyString = """{"success": false, "error": "Invalid ID or Password"}"""
                         responseCode = 401
                     }
+                }
+                path == "/api/app-version" && method == "GET" -> {
+                    responseBodyString = """{
+                        "versionCode": 2,
+                        "versionName": "1.0.1",
+                        "downloadUrl": "https://mayank-gents-backend-ekvo.onrender.com/download/mayank-gents.apk",
+                        "updateMessage": "Number-wise bookings on admin dashboard and automatic past booking filtering.",
+                        "forceUpdate": false
+                    }""".trimIndent()
+                    responseCode = 200
                 }
 
                 else -> {

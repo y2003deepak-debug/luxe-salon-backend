@@ -159,6 +159,9 @@ interface SalonApiService {
 
     @POST("api/admin/login")
     suspend fun loginAdmin(@Body body: AdminLoginDto): AdminLoginResponse
+
+    @GET("api/app-version")
+    suspend fun getAppVersion(): AppVersionDto
 }
 
 data class StatusUpdateDto(
@@ -177,9 +180,17 @@ data class AdminLoginResponse(
     val customGreeting: String
 )
 
+data class AppVersionDto(
+    val versionCode: Int,
+    val versionName: String,
+    val downloadUrl: String,
+    val updateMessage: String,
+    val forceUpdate: Boolean
+)
+
 // API engine initialization
 object RetrofitClient {
-    private const val BASE_URL = "https://luxe-salon-backend-ekvo.onrender.com/"
+    private const val BASE_URL = "https://mayank-gents-backend-ekvo.onrender.com/"
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())

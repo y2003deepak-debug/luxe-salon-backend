@@ -20,4 +20,4 @@ View your app in AI Studio: https://ai.studio/apps/39c9c6b5-74e7-4bd5-9fd4-34644
 5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
 6. Run the app on an emulator or physical device
 
-# luxe-salon-backend
+# mayank-gents-backend

@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // Never use cors() with no configuration — it allows ALL origins (wildcard).
 const allowedOrigins = [
     // Add your trusted admin web panel origin here when you build one.
-    // Example: 'https://admin.luxesalon.com'
+    // Example: 'https://admin.mayankgents.com'
     // For now, only server-to-server calls (no Origin header) are allowed.
 ];
 const corsOptions = {
@@ -30,8 +30,13 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+const path = require('path');
+
 // SECURITY FIX (VULN-17): Parse JSON with a size limit to prevent payload DoS attacks.
 app.use(express.json({ limit: '10kb' }));
+
+// Serve static download assets
+app.use('/download', express.static(path.join(__dirname, 'public')));
 
 // SECURITY FIX (VULN-17): Remove Express fingerprint header.
 app.disable('x-powered-by');
@@ -164,9 +169,23 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
     res.json({
         status: isMongoConnected ? "Active" : "Error",
-        message: isMongoConnected ? "Luxe Salon REST API Server is up and running!" : "Database Connection Failed!",
+        message: isMongoConnected ? "mayank gents REST API Server is up and running!" : "Database Connection Failed!",
         databaseMode: isMongoConnected ? "MongoDB Atlas (Cloud)" : "None (Connection Failed)",
         version: "1.0.0"
+    });
+});
+
+// App version update checker endpoint
+app.get('/api/app-version', (req, res) => {
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const downloadUrl = `${protocol}://${host}/download/mayank-gents.apk`;
+    res.json({
+        versionCode: 2,
+        versionName: "1.0.1",
+        downloadUrl: downloadUrl,
+        updateMessage: "Number-wise bookings on admin dashboard and automatic past booking filtering.",
+        forceUpdate: false
     });
 });
 
@@ -471,6 +490,6 @@ if (process.env.NODE_ENV !== 'production') {
 // Start database connection first, then start server
 connectDatabase().then(() => {
     app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Luxe Salon server listening on port ${PORT}`);
+        console.log(`mayank gents server listening on port ${PORT}`);
     });
 });

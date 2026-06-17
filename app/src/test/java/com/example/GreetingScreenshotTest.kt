@@ -29,7 +29,7 @@ class GreetingScreenshotTest {
     
     composeTestRule.setContent {
       MyApplicationTheme {
-        LuxeSalonApp(viewModel)
+        mayankgentsApp(viewModel)
       }
     }
 

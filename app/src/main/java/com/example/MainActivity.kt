@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        LuxeSalonApp(viewModel)
+                        mayankgentsApp(viewModel)
                     }
                 }
             }
@@ -110,9 +110,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LuxeSalonApp(viewModel: SalonViewModel) {
+fun mayankgentsApp(viewModel: SalonViewModel) {
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val appUpdateInfo by viewModel.appUpdateInfo.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -234,6 +236,81 @@ fun LuxeSalonApp(viewModel: SalonViewModel) {
                 }
             }
         }
+    }
+
+    appUpdateInfo?.let { update ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!update.forceUpdate) {
+                    viewModel.dismissAppUpdate()
+                }
+            },
+            title = {
+                Text(
+                    text = t("New Update Available! 🚀", "नया अपडेट उपलब्ध है! 🚀"),
+                    fontWeight = FontWeight.Bold,
+                    color = SoftObsidian,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Version: v${update.versionName} (${update.versionCode})",
+                        fontWeight = FontWeight.SemiBold,
+                        color = GoldPrimary,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = update.updateMessage,
+                        color = CharcoalGray,
+                        fontSize = 12.sp
+                    )
+                    if (update.forceUpdate) {
+                        Text(
+                            text = t(
+                                "This update is required to continue using the application.",
+                                "जारी रखने के लिए इस अपडेट को इंस्टॉल करना अनिवार्य है।"
+                            ),
+                            color = Color(0xFFE53935),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Cannot open download link", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary)
+                ) {
+                    Text(
+                        text = t("UPDATE NOW", "अपडेट करें"),
+                        color = SoftWhite,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                if (!update.forceUpdate) {
+                    TextButton(onClick = { viewModel.dismissAppUpdate() }) {
+                        Text(
+                            text = t("LATER", "बाद में"),
+                            color = CharcoalGray.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            },
+            containerColor = SoftWhite,
+            shape = RoundedCornerShape(12.dp)
+        )
     }
 }
 
@@ -3922,6 +3999,34 @@ fun StepReceiptConfirmation(viewModel: SalonViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Important: WhatsApp confirmation notice
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color(0xFFFFF3E0),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color(0xFFFFB74D))
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(text = "⚠️", fontSize = 18.sp)
+                Text(
+                    text = t(
+                        "To confirm your booking, it is mandatory to send the receipt on WhatsApp.",
+                        "बुकिंग कन्फर्म करने के लिए व्हाट्सएप पर रसीद भेजना जरूरी है।"
+                    ),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE65100),
+                    lineHeight = 16.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // WhatsApp Image Receipt Button — generates receipt image & sends directly to salon number
         finalBooking?.let { booking ->
             val context = LocalContext.current
@@ -4768,7 +4873,7 @@ fun createReceiptBitmap(booking: com.example.data.Booking): Bitmap {
         color = grayColor; textSize = 21f
         textAlign = Paint.Align.CENTER
     }
-    canvas.drawText("Mayank Gents Parlour  •  Powered by Luxe Salon App", width / 2f, y + 44f, footerPaint)
+    canvas.drawText("Mayank Gents Parlour  •  Powered by mayank gents App", width / 2f, y + 44f, footerPaint)
 
     // ---- GOLD BOTTOM STRIP ----
     val botStripPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = goldColor }
@@ -4830,7 +4935,7 @@ fun LanguageSelectionScreen(onLanguageSelected: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Luxe Salon",
+                    text = "mayank gents",
                     color = GoldPrimary,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,

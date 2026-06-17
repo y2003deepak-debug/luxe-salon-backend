@@ -123,12 +123,7 @@ async function connectDatabase() {
             console.log("Connected to MongoDB successfully!");
             isMongoConnected = true;
             
-            // WIPE ALL DEMO DATA (Cleans MongoDB Atlas database on server startup)
-            await Service.deleteMany({});
-            await Stylist.deleteMany({});
-            await Booking.deleteMany({});
-            console.log("Wiped all demo data from MongoDB Atlas.");
-
+            // Initial database seeding (currently empty)
             await seedMongoIfEmpty();
         } catch (err) {
             console.error("MongoDB connection failed!", err.message);

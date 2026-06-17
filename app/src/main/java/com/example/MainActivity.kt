@@ -4283,6 +4283,7 @@ fun StepTimeSlotSelection(
     onChooseTime: (String) -> Unit
 ) {
     val currentLang = LocalLanguage.current
+    val currentBookings by viewModel.allBookings.collectAsStateWithLifecycle()
     val dates = remember {
         val list = mutableListOf<String>()
         val sdf = java.text.SimpleDateFormat("EEE, MMM dd", java.util.Locale.ENGLISH)
@@ -4295,7 +4296,18 @@ fun StepTimeSlotSelection(
         }
         list
     }
-    val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
+    val timesCodeDefault = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
+    val timesCode = remember(selectedStylist?.name, selectedDate, currentBookings) {
+        if (selectedStylist != null && selectedDate != null) {
+            viewModel.getDynamicSlotsForStylistDate(
+                stylistName = selectedStylist.name,
+                date = selectedDate,
+                allSlots = timesCodeDefault
+            )
+        } else {
+            timesCodeDefault
+        }
+    }
 
     // --- Smart slot conflict detection ---
     // Total duration of services selected by current user
@@ -4305,8 +4317,7 @@ fun StepTimeSlotSelection(
     }
 
     // Live-computed blocked slots based on existing bookings for this stylist + date
-    val currentBookings by viewModel.allBookings.collectAsStateWithLifecycle()
-    val bookedBlockedSlots = remember(selectedStylist?.name, selectedDate, currentBookings) {
+    val bookedBlockedSlots = remember(selectedStylist?.name, selectedDate, currentBookings, timesCode) {
         if (selectedStylist != null && selectedDate != null) {
             viewModel.getBlockedSlotsForStylistDate(
                 stylistName = selectedStylist.name,

@@ -263,7 +263,12 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
 
         if (phone.isNotBlank() && name.isNotBlank()) {
             // --- Duplicate booking conflict check ---
-            val timesCode = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
+            val timesCodeDefault = listOf("09:00 AM", "10:30 AM", "12:00 PM", "02:30 PM", "04:00 PM", "05:30 PM")
+            val timesCode = getDynamicSlotsForStylistDate(
+                stylistName = stylist,
+                date = date,
+                allSlots = timesCodeDefault
+            )
             val newDuration = calculateTotalServiceDuration()
             val blockedSlots = getBlockedSlotsForStylistDate(
                 stylistName = stylist,
@@ -623,5 +628,63 @@ class SalonViewModel(application: Application) : AndroidViewModel(application) {
             total += match?.durationMin ?: 20 // fallback 20 min per service
         }
         return if (total == 0) 20 else total
+    }
+
+    fun getDynamicSlotsForStylistDate(
+        stylistName: String,
+        date: String,
+        allSlots: List<String>
+    ): List<String> {
+        val bookings = allBookings.value
+        val activeBookings = bookings.filter {
+            it.stylistName == stylistName &&
+            it.date == date &&
+            it.status == "Active"
+        }
+        if (activeBookings.isEmpty()) return allSlots
+
+        fun parseTimeToMinutes(timeStr: String): Int {
+            return try {
+                val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.ENGLISH)
+                val date2 = sdf.parse(timeStr.trim()) ?: return 0
+                val cal = java.util.Calendar.getInstance().apply { time = date2 }
+                cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+            } catch (e: Exception) { 0 }
+        }
+
+        fun formatMinutesToTime(totalMins: Int): String {
+            val hrs = (totalMins / 60) % 24
+            val mins = totalMins % 60
+            val cal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, hrs)
+                set(java.util.Calendar.MINUTE, mins)
+            }
+            val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.ENGLISH)
+            return sdf.format(cal.time)
+        }
+
+        return allSlots.mapIndexed { idx, slot ->
+            val startMins = parseTimeToMinutes(slot)
+            val nextSlotStartMins = if (idx < allSlots.size - 1) {
+                parseTimeToMinutes(allSlots[idx + 1])
+            } else {
+                24 * 60
+            }
+
+            val bookingsInSlot = activeBookings.filter {
+                val bookMin = parseTimeToMinutes(it.timeSlot)
+                bookMin >= startMins && bookMin < nextSlotStartMins
+            }
+
+            if (bookingsInSlot.isNotEmpty()) {
+                val maxEndMins = bookingsInSlot.maxOf { b ->
+                    val bookStartMin = parseTimeToMinutes(b.timeSlot)
+                    bookStartMin + estimateDurationForServicesString(b.services)
+                }
+                formatMinutesToTime(maxEndMins)
+            } else {
+                slot
+            }
+        }
     }
 }
